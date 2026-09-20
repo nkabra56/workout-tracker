@@ -496,7 +496,7 @@ window.addEventListener("hashchange", () => {
   if (title) { title.tabIndex = -1; title.focus({preventScroll:true}); }
   app.classList.remove('section-enter');
   requestAnimationFrame(()=>app.classList.add('section-enter'));
-  setTimeout(()=>app.classList.remove('section-enter'),180);
+  setTimeout(()=>app.classList.remove('section-enter'),300);
 });
 window.addEventListener("storage", () =>
   toast("Another window changed data. Reload before editing."),

@@ -1163,3 +1163,53 @@ summary { min-height: 44px; }
 .compact-exercise h3 { border-left: 2px solid var(--blue); padding-left: 10px; margin-bottom: 10px; }
 nav a { min-width: 84px; }
 .set-row input { border-radius: 6px; }
+/* Soft grouped surfaces keep the journal open and the controls easy to scan. */
+:root { --line: #202733; --raised: #151b25; }
+h1 { font-size: 34px; font-weight: 750; letter-spacing: -1.15px; }
+.intro { margin-bottom: 22px; }
+button, input, select, textarea, .secondary, .weight-log-action { border-radius: 14px; }
+button, .weight-log-action { -webkit-tap-highlight-color: transparent; }
+button, a, input, select, textarea, summary { transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease, transform 220ms cubic-bezier(.2,.8,.2,1), box-shadow 180ms ease; }
+button:active, .section-card:active, .weight-log-action:active { opacity: .88; transform: scale(.98); }
+input, select, textarea { background: #0c1119; border-color: #283343; }
+input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+.round-link { border-radius: 50%; background: var(--raised); border: 0; }
+.day-pill { border-radius: 20px; padding: 7px 11px; }
+.day-strip > div, .day-strip .current-day { border-radius: 18px; }
+.section-nav { gap: 3px; padding: 4px; border: 0; border-radius: 17px; background: #111720; margin: 4px 0 24px; }
+.section-nav a { min-height: 44px; padding: 10px 4px; border: 0; border-radius: 13px; font-size: 12px; font-weight: 600; }
+.section-nav a[aria-current=page] { background: #293344; color: #f4f7ff; box-shadow: 0 2px 6px #0005, inset 0 1px #ffffff0c; }
+.section-nav a:active { transform: scale(.97); }
+.workout-hero { background: linear-gradient(135deg,#10243e,#0c141f 75%); border: 1px solid #20364e; border-radius: 24px; padding: 22px; margin: 8px 0 26px; }
+.workout-hero h2 { font-size: 27px; }
+.primary-wide { border-radius: 16px; min-height: 52px; }
+.template-grid { background: #0c1119; border-radius: 22px; overflow: hidden; padding: 0 16px; }
+.template-choice { border-color: #202936; }
+.template-choice:last-child { border-bottom: 0; }
+.template { padding: 20px 8px 20px 0; min-height: 100px; }
+.template strong { font-size: 18px; line-height: 1.3; }
+.template small { letter-spacing: .65px; font-size: 10px; }
+.edit-template { border-radius: 22px; padding: 10px 14px; color: var(--soft); background: #172337; font-size: 12px; }
+.section-cards { background: #0c1119; border-radius: 22px; padding: 0 18px; }
+.section-card:last-child { border-bottom: 0; }
+.section-card.primary-link { border: 0; border-radius: 20px; background: #0e2038; padding: 20px; }
+.history { border-radius: 16px; background: #0c1119; border: 0; padding: 18px; margin: 10px 0; }
+.compact-rest { border-radius: 18px; background: #0b1421; border-color: #21334a; padding: 10px; }
+.compact-exercise { margin: 14px 0 24px; padding: 18px 0 24px; }
+.compact-exercise h3 { border-left: 0; padding-left: 0; display: flex; align-items: center; gap: 10px; }
+.compact-exercise .ordinal { display: inline-grid; place-items: center; background: #112642; color: #92c4ff; border-radius: 10px; min-width: 30px; height: 30px; margin: 0; }
+.set-row input { border-radius: 12px; }
+.set-row input[type=checkbox] { border-radius: 50%; }
+.session-heading { border-bottom: 0; padding-bottom: 8px; }
+nav { background: #080d15e8; border-top-color: #ffffff0d; backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); gap: 14px; }
+nav a { min-width: 84px; border-radius: 20px; padding: 7px 18px; }
+nav a.selected { border-radius: 20px; background: #132740; color: #79b6ff; }
+nav a:active { transform: scale(.94); }
+.section-enter { animation: section-arrival 280ms cubic-bezier(.2,.8,.2,1); }
+@keyframes section-arrival { from { opacity: .45; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 350px) {
+  .workout-hero { padding: 18px; }
+  .template-grid { padding: 0 13px; }
+  .compact-rest { gap: 5px; padding: 8px; }
+  nav { gap: 6px; }
+}
