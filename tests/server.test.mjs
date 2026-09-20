@@ -66,6 +66,8 @@ test("HTTP service protects records, enforces origin and persists authenticated 
       body: '{"changes":[]}',
     });
     assert.equal(authenticated.status, 200);
+    assert.match(authenticated.headers.get("set-cookie"), /Max-Age=31536000/);
+    assert.match(authenticated.headers.get("set-cookie"), /HttpOnly/);
     const record = {
       id: "test-food",
       name: "Test food",

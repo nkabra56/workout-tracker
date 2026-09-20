@@ -2,6 +2,7 @@ import {
   authorized,
   syncDisk,
   issueSession,
+  SESSION_TTL_SECONDS,
   validSession,
 } from "./sync-server.mjs";
 import http from "node:http";
@@ -100,7 +101,7 @@ http
             "steadily_session=" +
               (lock ? "" : issueSession(process.env.SYNC_TOKEN)) +
               "; HttpOnly; SameSite=Strict; Path=/api; Max-Age=" +
-              (lock ? "0" : "2592000") +
+              (lock ? "0" : String(SESSION_TTL_SECONDS)) +
               secure,
           );
           res.writeHead(204).end();
@@ -124,6 +125,14 @@ http
           parsed.changes,
         );
         res.setHeader("Content-Type", "application/json");
+        res.setHeader(
+          "Set-Cookie",
+          "steadily_session=" +
+            issueSession(process.env.SYNC_TOKEN) +
+            "; HttpOnly; SameSite=Strict; Path=/api; Max-Age=" +
+            SESSION_TTL_SECONDS +
+            (process.env.APP_ORIGIN?.startsWith("https://") ? "; Secure" : ""),
+        );
         res.end(JSON.stringify(records));
         return;
       }

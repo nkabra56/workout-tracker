@@ -71,8 +71,9 @@ export function syncDisk(directory, changes) {
   return work;
 }
 
+export const SESSION_TTL_SECONDS = 365 * 86400;
 export function issueSession(secret, now = Date.now()) {
-  const expires = String(now + 30 * 86400000);
+  const expires = String(now + SESSION_TTL_SECONDS * 1000);
   return (
     expires +
     "." +
@@ -91,7 +92,7 @@ export function validSession(cookie, secret, now = Date.now()) {
   if (
     !/^\d+$/.test(expiry) ||
     Number(expiry) <= now ||
-    Number(expiry) > now + 31 * 86400000
+    Number(expiry) > now + (SESSION_TTL_SECONDS + 86400) * 1000
   )
     return false;
   return authorized(

@@ -74,7 +74,32 @@ test("signed browser sessions expire and reject tampering", async () => {
     false,
   );
   assert.equal(
-    validSession("steadily_session=" + issued, secret, 31 * 86400000),
+    validSession("steadily_session=" + issued, secret, 366 * 86400000),
     false,
   );
+});
+
+test("regular use renews sessions and legacy month-long cookies remain valid", async () => {
+  const { issueSession, validSession, SESSION_TTL_SECONDS } =
+    await import("../sync-server.mjs");
+  const { createHmac } = await import("node:crypto");
+  const secret = "b".repeat(64),
+    day = 86400000,
+    original = issueSession(secret, 0),
+    renewed = issueSession(secret, 350 * day);
+  assert.equal(
+    validSession("steadily_session=" + original, secret, 400 * day),
+    false,
+  );
+  assert.equal(
+    validSession("steadily_session=" + renewed, secret, 400 * day),
+    true,
+  );
+  const oldExpiry = String(30 * day),
+    old =
+      oldExpiry +
+      "." +
+      createHmac("sha256", secret).update(oldExpiry).digest("base64url");
+  assert.equal(validSession("steadily_session=" + old, secret, day), true);
+  assert.equal(SESSION_TTL_SECONDS, 31536000);
 });

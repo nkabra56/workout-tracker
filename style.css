@@ -777,3 +777,302 @@ nav a.selected {
     scroll-behavior: auto !important;
   }
 }
+/* Bound native date controls and grid items at narrow iPhone widths. */
+html {
+  scroll-padding-bottom: calc(110px + env(safe-area-inset-bottom));
+}
+article,
+label,
+details,
+.fields > *,
+.section-title > div {
+  min-width: 0;
+}
+input,
+select,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+  scroll-margin-bottom: 110px;
+}
+.date-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0;
+  width: 100%;
+}
+.date-control > span {
+  white-space: nowrap;
+  color: #b6c7df;
+}
+#food-date {
+  display: block;
+  flex: 0 1 168px;
+  inline-size: 168px;
+  max-inline-size: 60%;
+  min-inline-size: 0;
+  block-size: 46px;
+  min-block-size: 44px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px 12px;
+  line-height: 24px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+#food-date::-webkit-date-and-time-value {
+  min-width: 0;
+  text-align: center;
+  line-height: 24px;
+}
+#food-date::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+}
+h1,
+h2,
+h3,
+.food-row span {
+  overflow-wrap: anywhere;
+}
+:root {
+  --page-gutter: 20px;
+}
+header,
+main {
+  padding-left: max(var(--page-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--page-gutter), env(safe-area-inset-right));
+}
+nav {
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+}
+@media (max-width: 380px) {
+  :root {
+    --page-gutter: 16px;
+  }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  header {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+  main {
+    padding-top: 4px;
+  }
+  nav {
+    padding-top: 4px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom));
+  }
+  nav a {
+    min-height: 44px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+}
+/* Logger: one header and context line; full-sized controls in compact rows. */
+.session-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.session-heading > div:first-child {
+  min-width: 0;
+}
+.session-heading h2 {
+  font-size: 21px;
+  letter-spacing: -0.5px;
+  margin: 7px 0 0;
+}
+.session-heading .eyebrow {
+  font-size: 9px !important;
+  letter-spacing: 1px;
+}
+.session-actions {
+  display: flex;
+  gap: 6px;
+}
+.session-actions button {
+  font-size: 12px;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+.compact-session {
+  padding-top: 0;
+}
+.compact-rest {
+  flex-wrap: nowrap;
+  padding: 8px;
+  gap: 6px;
+  margin: 12px 0;
+}
+.compact-rest b {
+  flex-basis: auto;
+  font-size: 11px;
+  min-width: 27px;
+}
+.compact-rest input {
+  width: 54px;
+  min-width: 44px;
+  max-width: 54px;
+  padding: 10px 6px;
+  min-height: 44px;
+}
+.compact-rest button {
+  padding: 10px 12px;
+  min-height: 44px;
+}
+.compact-rest output {
+  margin-left: auto;
+  font-size: 11px;
+  min-width: 34px;
+  white-space: nowrap;
+}
+.compact-exercise {
+  padding: 13px 14px;
+  margin: 10px 0;
+  border-radius: 14px;
+}
+.compact-exercise h3 {
+  font-size: 16px;
+  line-height: 1.3;
+}
+.compact-exercise .ordinal {
+  font-size: 10px;
+  margin-right: 8px;
+}
+.compact-exercise .exercise-target {
+  font-size: 10px;
+  margin: 7px 0 6px;
+  color: #a2b6d3;
+  line-height: 1.4;
+}
+.exercise-target span {
+  margin: 0 5px;
+  color: #526c92;
+}
+.previous-empty {
+  display: block;
+  font-size: 10px;
+  color: #8197b7;
+  margin: 5px 0 11px;
+}
+.previous-data {
+  padding: 0;
+  border: 0;
+  margin: 0 0 7px;
+}
+.previous-data summary {
+  font-size: 10px;
+  color: #a3bddd;
+  min-height: 32px;
+  padding: 9px 0;
+  line-height: 1.4;
+}
+.previous-data table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: center;
+  margin: 6px 0 12px;
+}
+.previous-data th,
+.previous-data td {
+  padding: 7px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 400;
+}
+.previous-data caption {
+  font-size: 10px;
+  text-align: left;
+  padding: 6px;
+  color: var(--muted);
+}
+.compact-exercise .set-head {
+  font-size: 9px;
+  margin: 0 0 3px;
+}
+.compact-exercise .set-row {
+  min-height: 48px;
+  gap: 7px;
+}
+.compact-exercise .set-row input {
+  margin: 2px 0;
+  height: 44px;
+  min-height: 44px;
+  padding: 8px 2px;
+  font-size: 16px;
+}
+.compact-exercise .set-row input[type="checkbox"] {
+  margin: 2px 0;
+}
+.compact-exercise .equipment {
+  margin-top: 6px;
+}
+.compact-exercise .equipment summary {
+  min-height: 36px;
+  padding-top: 11px;
+  font-size: 10px;
+}
+.session-finish {
+  padding: 14px;
+}
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+}
+.check-label input[type="checkbox"] {
+  flex-shrink: 0;
+  margin: 0;
+}
+.session-finish > button {
+  width: 100%;
+  margin-top: 16px;
+}
+.session-finish details {
+  border: 0;
+  padding-bottom: 0;
+}
+.session-finish details summary {
+  min-height: 44px;
+  font-size: 12px;
+  padding-top: 12px;
+}
+.read-only-note {
+  font-size: 11px;
+  margin: 8px 0;
+}
+@media (max-width: 350px) {
+  .compact-exercise {
+    padding: 12px 10px;
+  }
+  .compact-exercise .set-row {
+    gap: 5px;
+  }
+  .session-heading h2 {
+    font-size: 19px;
+  }
+  .session-actions button {
+    padding: 10px;
+  }
+  .compact-rest {
+    gap: 5px;
+  }
+  .compact-rest button {
+    padding: 10px;
+  }
+  .compact-rest output {
+    min-width: 30px;
+    font-size: 10px;
+  }
+}
+.compact-exercise .equipment summary,
+.previous-data summary {
+  min-height: 44px;
+}
