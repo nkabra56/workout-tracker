@@ -20,7 +20,7 @@ See `deploy/steadily.service`; adjust Node executable path if needed. Service ha
 
 Back up `/var/lib/steadily/records.json` privately with restricted permissions and encrypted backup storage. Test recovery into a separate directory. Also export device JSON before updates. Stop the service before manual database restoration. Never put backups in the served application directory or repository.
 
-Keep Node, Debian and Tailscale patched. To update app shell assets, bump the cache version in `sw.js`; the new worker activates once older tabs close. Keep the old source version available for rollback. Do not clear IndexedDB during updates. JSON sync is suitable for a small personal journal; large multi-user workloads need a transactional database and individual authentication.
+Keep Node, Debian and Tailscale patched. To update app shell assets, bump the cache version in `sw.js`; the new worker activates after its assets are cached; reload the app to display the new interface. Keep the old source version available for rollback. Do not clear IndexedDB during updates. JSON sync is suitable for a small personal journal; large multi-user workloads need a transactional database and individual authentication.
 
 ## Remaining acceptance checks
 

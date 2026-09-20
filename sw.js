@@ -1,4 +1,4 @@
-const CACHE = "steadily-v7";
+const CACHE = "steadily-v8";
 const ASSETS = [
   "/",
   "/index.html",
@@ -13,7 +13,7 @@ const ASSETS = [
   "/manifest.webmanifest",
 ];
 self.addEventListener("install", (event) =>
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS))),
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(()=>self.skipWaiting())),
 );
 self.addEventListener("activate", (event) =>
   event.waitUntil(
