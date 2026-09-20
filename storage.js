@@ -22,7 +22,7 @@ export async function write(store, record) {
   return new Promise((resolve, reject) => {
     const tx = d.transaction(store, "readwrite");
     tx.objectStore(store).put(structuredClone(record));
-    tx.oncomplete = resolve;
+    tx.oncomplete = () => { window.dispatchEvent(new Event("journal-saved")); resolve(); };
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });
@@ -32,7 +32,7 @@ export async function remove(store, id) {
   const record = records.find((r) => r.id === id);
   if (record) await write(store, { ...record, _deleted: true });
 }
-export async function sync(token) {
+export async function sync() {
   const stores = ["sessions", "foods", "logs", "settings"];
   const snapshots = await Promise.all(stores.map((s) => readAll(s, true)));
   const changes = snapshots.flatMap((rs, i) =>
@@ -44,19 +44,18 @@ export async function sync(token) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer " + token,
     },
     body: JSON.stringify({ changes }),
     signal: AbortSignal.timeout(20000),
   });
   if (!response.ok)
-    throw Error(
-      response.status === 401
-        ? "Unlock sync with your private access key."
+    throw Object.assign(Error(
+      [401, 403].includes(response.status)
+        ? "Pi access denied. Connect Tailscale with the account authorized for this journal."
         : response.status === 503
           ? "Pi sync is not configured."
           : "Sync unavailable; local changes are safe.",
-    );
+    ), { status: response.status });
   const incoming = await response.json();
   const d = await db;
   await new Promise((resolve, reject) => {

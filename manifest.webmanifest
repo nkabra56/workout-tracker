@@ -3,8 +3,8 @@
   "short_name": "Lifty",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#080b12",
-  "theme_color": "#080b12",
+  "background_color": "#010204",
+  "theme_color": "#010204",
   "icons": [
     {
       "src": "/icon-192.png",

@@ -1,13 +1,13 @@
 :root {
   color-scheme: dark;
-  --bg: #080b12;
-  --surface: #121824;
-  --raised: #192234;
-  --line: #293447;
+  --bg: #010204;
+  --surface: #080b10;
+  --raised: #10151e;
+  --line: #252e3b;
   --text: #f2f5fb;
-  --muted: #9aa9bf;
-  --blue: #4b94ff;
-  --soft: #aacdff;
+  --muted: #a4b0c2;
+  --blue: #2388ff;
+  --soft: #80baff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
@@ -168,7 +168,7 @@ button:disabled {
   color: #dce6f8;
 }
 .day-strip .current-day {
-  background: #1e365c;
+  background: #0b2446;
   color: var(--soft);
 }
 .day-strip .current-day b {
@@ -179,7 +179,7 @@ button:disabled {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: #334057;
+  background: #293443;
 }
 .day-strip i.logged-day {
   background: var(--blue);
@@ -192,8 +192,8 @@ article {
   margin: 16px 0;
 }
 .workout-hero {
-  background: #142138;
-  border-color: #294164;
+  background: #090f19;
+  border-color: #244c7d;
   margin: 0 0 24px;
   padding: 22px;
 }
@@ -210,7 +210,7 @@ article {
 }
 .day-pill {
   font-size: 11px;
-  background: #253f65;
+  background: #163b68;
   border-radius: 8px;
   padding: 6px 9px;
   white-space: nowrap;
@@ -436,7 +436,7 @@ article {
   gap: 8px;
   padding: 12px;
   border: 1px solid #2c405e;
-  background: #132039;
+  background: #080f1a;
   border-radius: 14px;
   margin: 14px 0 20px;
   flex-wrap: wrap;
@@ -543,7 +543,7 @@ select,
 textarea {
   font: inherit;
   font-size: 16px;
-  background: #0c1320;
+  background: #020509;
   color: var(--text);
   border: 1px solid #34435b;
   border-radius: 10px;
@@ -567,7 +567,7 @@ input[type="checkbox"] {
   display: inline-grid;
   vertical-align: middle;
   place-content: center;
-  background: #0c1320;
+  background: #020509;
   border: 1px solid #425570;
   border-radius: 10px;
   accent-color: var(--blue);
@@ -661,9 +661,9 @@ nav {
   left: 0;
   right: 0;
   z-index: 10;
-  background: #0b111bf2;
+  background: #020407fa;
   backdrop-filter: blur(20px);
-  border-top: 1px solid #253146;
+  border-top: 1px solid #1e2734;
   display: flex;
   justify-content: center;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
@@ -685,8 +685,8 @@ nav svg {
   height: 23px;
 }
 nav a.selected {
-  color: #7bb2ff;
-  background: #15263f;
+  color: #4b9dff;
+  background: #071a31;
 }
 .editor > .section-title h1 {
   font-size: 27px;
@@ -724,7 +724,7 @@ nav a.selected {
   width: max-content;
   max-width: 90%;
   padding: 14px 18px;
-  background: #253f66;
+  background: #0b2442;
   border: 1px solid #426394;
   color: #f0f5ff;
   border-radius: 13px;
@@ -733,7 +733,7 @@ nav a.selected {
   line-height: 1.5;
 }
 :focus-visible {
-  outline: 3px solid #a6cfff;
+  outline: 3px solid #419bff;
   outline-offset: 3px;
 }
 @media (max-width: 380px) {

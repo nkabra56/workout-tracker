@@ -1,42 +1,29 @@
 # Private Raspberry Pi installation
 
-Use a supported 64-bit Linux system with Tailscale and Node 22 or later. Preserve existing services and inspect Serve configuration before deployment. Each installation uses independent credentials and private data.
+Use Node 22+ and Tailscale on a maintained 64-bit Linux system. Review existing services and Serve routes before changing them. Each installation owns a separate journal.
 
-## Installation
+## Owner-only automatic sync
 
-1. Install a maintained Node 22+ ARM64 runtime from the OS/vendor's supported distribution. Create a dedicated unprivileged `steadily` system user.
-2. Copy reviewed code into `/opt/steadily`, owned by the administrator and readable by the service. Create `/var/lib/steadily` owned by the service with mode 0700. Do not copy development backups, `.git`, or secrets.
-3. Create `/etc/steadily.env` with mode 0600. Set `HOST=127.0.0.1`, `PORT=5173`, `DATA_DIR=/var/lib/steadily`, `APP_ORIGIN=https://<pi-private-tailnet-hostname>`, and `SYNC_TOKEN` to a newly generated cryptographically random key (at least 32 characters, recommended 32 random bytes encoded as hex). Never commit or paste this key into issue reports. Transfer it privately to the owner's phone password manager. On HTTPS, the app exchanges the key for a protected rolling one-year cookie; the raw key is not persisted by app code.
-4. Review and install the example systemd service. Its environment file is server-side only. Run a health check on loopback before any HTTPS proxy change.
-5. Review current tailnet grants/ACLs so only the intended user/devices can reach the Pi's HTTPS service. Membership of the tailnet alone is not sufficient authorization: all private sync requests additionally require an authenticated session or the access key. The public shell contains no personal records. Do not enable Funnel or router forwarding.
-6. Configure **Tailscale Serve**, e.g. `tailscale serve --bg http://127.0.0.1:5173`. This changes the Pi's Serve configuration and may request tailnet HTTPS enablement. Verify exact hostname, certificate and existing routes first. See [official Serve documentation](https://tailscale.com/docs/features/tailscale-serve). Keep Node on loopback; TLS ends at the trusted local Serve process. Do not deploy a directly exposed HTTP listener.
-7. On iPhone with Tailscale connected, visit that private HTTPS hostname in Safari. Use Share → Add to Home Screen. Unlock Pi sync under You, make a synthetic session, disconnect, edit, reconnect and verify persistence and sync. Verify another device with no key cannot fetch records. Clear only synthetic data through normal controls after acceptance.
+1. Determine the intended owner's exact Tailscale login using the Tailscale admin console or the User profile in tailscale status --json. Do not assume every tailnet member is an owner. Tagged devices do not carry user identity headers.
+2. Set server-only configuration in /etc/steadily.env (root-owned, mode 0600): HOST=127.0.0.1, PORT=5173, DATA_DIR=/var/lib/steadily, APP_ORIGIN=https://your-private-host.tailnet.ts.net, SYNC_AUTH=tailscale, TAILSCALE_PROXY_ADDRESS=127.0.0.1, and TAILSCALE_ALLOWED_LOGINS to the exact approved login. Multiple explicit logins may be comma-separated; all share the same journal. Never commit real identities or data.
+3. Review deploy/install.sh and deploy/steadily.service. For a new install run sudo with APP_ORIGIN, NODE_BINARY and TAILSCALE_ALLOWED_LOGINS explicitly set, then bash deploy/install.sh. The installer preserves existing environment and records on updates; to migrate an existing installation, update the server environment before restarting. The script copies only application files, creates an unprivileged service account, restricts data to mode 0700 and starts the loopback service.
+4. Review tailnet access rules and current Serve routes, then configure private HTTPS with tailscale serve --bg http://127.0.0.1:5173. Never enable Funnel or router forwarding. Verify the actual hostname/certificate. The installer does not change Tailscale policy or Serve routes.
+5. With the owner's Tailscale connection active, open the private HTTPS URL in Safari and use Share → Add to Home Screen. Sync starts automatically: no app key, unlock, toggle or monthly session. Existing device data is preserved. Wait for Synced with Pi. Offline edits stay local and retry after writes, reconnect, foreground or every 30 seconds while open. iOS does not guarantee background execution.
 
-## Service example
+## Trust boundary and verification
 
-See `deploy/steadily.service`; adjust Node executable path if needed. Service hardening is defense in depth, not a substitute for updates, access control and backups. The application token authorizes a single shared private journal, not multiple users. Rotate a compromised key by replacing the environment value and restarting; all existing signed browser sessions immediately stop working.
+[Official Serve documentation](https://tailscale.com/docs/features/tailscale-serve#identity-headers) describes how Serve removes incoming identity headers and injects the connected user's login. The application trusts that header only from its configured loopback proxy, requires one exact allowlisted login, and refuses an unsafe listener/origin configuration. Missing identity, tagged devices and non-owners fail closed. Legacy bearer tokens/cookies are ignored in Tailscale mode; session expiry is irrelevant. Exact Origin and JSON POST checks remain enforced.
+
+The loopback boundary trusts other processes and administrators on the Pi: local malware can forge a request. It does not prove the peer process is tailscaled. Keep the Pi trusted and patched. A compromised owner device/account can access this journal. Device revocation belongs in Tailscale; browser storage and the Pi database are not app-encrypted. Local offline copies persist even if network authorization is revoked.
+
+Verify successful HTTPS sync with no Authorization or Cookie headers, rejection of missing/unapproved identity on loopback, rejection of cross-origin requests, loopback-only listener, and no Funnel configuration. Test offline edits/reconnect and separate devices without deleting site data. Auth tests simulate other users; testing a second real tailnet identity requires a separate account/device.
+
+## Environments without trusted Serve
+
+Unset SYNC_AUTH or explicitly set token to retain the authenticated compatibility API. Set a cryptographically random SYNC_TOKEN of at least 32 characters; missing credentials return 503. The API supports bearer authorization or an administrator-provisioned protected cookie via /api/unlock. There is no app key-entry UI, anonymous mode, or fallback from failed Tailscale identity to tokens. For automatic browser use, configure private Serve as above. Do not enable identity mode behind an arbitrary proxy or a publicly reachable listener.
 
 ## Backup and updates
 
-Back up `/var/lib/steadily/records.json` privately with restricted permissions and encrypted backup storage. Test recovery into a separate directory. Also export device JSON before updates. Stop the service before manual database restoration. Never put backups in the served application directory or repository.
+Back up /var/lib/steadily/records.json privately with restricted permissions and encrypted storage. Test restore separately. Export device JSON before risky maintenance; never commit backups. Stop the service before manual restoration. Updates preserve IndexedDB and server records. Bump the service-worker cache for app-shell changes, then reload the installed app (a second reload can be needed after worker installation). Never clear site data to refresh assets.
 
-Keep Node, Debian and Tailscale patched. To update app shell assets, bump the cache version in `sw.js`; the new worker activates after its assets are cached; reload the app to display the new interface. Keep the old source version available for rollback. Do not clear IndexedDB during updates. JSON sync is suitable for a small personal journal; large multi-user workloads need a transactional database and individual authentication.
-
-## Remaining acceptance checks
-
-- Verify service permissions, private HTTPS and explicit tailnet access rules.
-- Test two-device offline edits, duplicate retries, deletion tombstones, import alternatives and recovery.
-- Test physical iPhone safe areas, numeric keyboard, storage persistence, homescreen icon and offline relaunch.
-- Verify OFF connectivity from the Pi; provider outages leave custom/saved foods usable.
-
-## Repeatable service installer
-
-After Node is installed and the source is cloned, review and run:
-
-```sh
-sudo APP_ORIGIN=https://your-private-host.tailnet.ts.net NODE_BINARY=/absolute/path/to/node bash deploy/install.sh
-```
-
-The script creates a service account, copies only application files, generates a fresh server-side key on first installation, preserves existing environment/data on updates, and starts the loopback service. It does not enable Tailscale Serve or alter tailnet policy. Confirm `APP_ORIGIN` in the private environment file when changing hostnames. To retrieve the sign-in key privately, the machine owner can read `/etc/steadily.env` over SSH; do not put its contents into public chat, logs or screenshots. Store it in a password manager.
-
-Successful authenticated sync refreshes the protected cookie for another year, including existing unexpired month-long sessions. Regular use therefore avoids monthly key reentry. A year of inactivity, browser data removal, or rotating the installation key can require signing in again. No raw key is written to browser storage.
+Keep Node, Debian and Tailscale patched. The JSON database uses atomic renames and serialized writes; storage failure still requires recovery from backups. This is a small single-person journal, not a multi-tenant service.

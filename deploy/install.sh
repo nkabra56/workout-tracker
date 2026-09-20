@@ -11,12 +11,11 @@ source_dir="$(cd "$(dirname "$0")/.." && pwd)"
 id steadily >/dev/null 2>&1 || useradd --system --home /var/lib/steadily --shell /usr/sbin/nologin steadily
 install -d -m 0755 /opt/steadily
 install -d -o steadily -g steadily -m 0700 /var/lib/steadily
-for file in index.html app.js editor.js core.js storage.js style.css sw.js icon.svg icon-192.png icon-512.png apple-touch-icon.png manifest.webmanifest server.mjs sync-server.mjs; do install -m 0644 "$source_dir/$file" /opt/steadily/; done
+for file in index.html app.js automatic-sync.js editor.js core.js storage.js style.css sw.js icon.svg icon-192.png icon-512.png apple-touch-icon.png manifest.webmanifest server.mjs sync-server.mjs serve-auth.mjs; do install -m 0644 "$source_dir/$file" /opt/steadily/; done
 if [ ! -e /etc/steadily.env ]; then
+ : "${TAILSCALE_ALLOWED_LOGINS:?Set the explicit owner Tailscale login allowlist}"
  umask 077
- token="$("$node_binary" -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))')"
- printf 'HOST=127.0.0.1\nPORT=5173\nDATA_DIR=/var/lib/steadily\nAPP_ORIGIN=%s\nSYNC_TOKEN=%s\n' "$APP_ORIGIN" "$token" > /etc/steadily.env
- unset token
+ printf 'HOST=127.0.0.1\nPORT=5173\nDATA_DIR=/var/lib/steadily\nAPP_ORIGIN=%s\nSYNC_AUTH=tailscale\nTAILSCALE_PROXY_ADDRESS=127.0.0.1\nTAILSCALE_ALLOWED_LOGINS=%s\n' "$APP_ORIGIN" "$TAILSCALE_ALLOWED_LOGINS" > /etc/steadily.env
 fi
 sed "s@/usr/bin/node@$node_binary@" "$source_dir/deploy/steadily.service" > /etc/systemd/system/steadily.service
 systemctl daemon-reload

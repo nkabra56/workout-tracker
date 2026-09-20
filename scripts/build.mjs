@@ -3,6 +3,7 @@ await mkdir("dist", { recursive: true });
 for (const file of [
   "index.html",
   "app.js",
+  "automatic-sync.js",
   "editor.js",
   "core.js",
   "storage.js",

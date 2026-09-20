@@ -1,3 +1,4 @@
+import { serveAuthConfig, trustedServeIdentity } from "./serve-auth.mjs";
 import {
   authorized,
   syncDisk,
@@ -12,6 +13,7 @@ const root = fileURLToPath(new URL("./", import.meta.url));
 const allowed = new Set([
   "index.html",
   "app.js",
+  "automatic-sync.js",
   "editor.js",
   "core.js",
   "storage.js",
@@ -31,6 +33,7 @@ const types = {
   png: "image/png",
   webmanifest: "application/manifest+json",
 };
+const authConfig = serveAuthConfig(process.env);
 let lastSearch = 0;
 let authFailures = 0,
   authWindow = Date.now();
@@ -61,20 +64,21 @@ http
           res.writeHead(429).end();
           return;
         }
-        if (!process.env.SYNC_TOKEN || process.env.SYNC_TOKEN.length < 32) {
+        if (authConfig.mode === "token" && (!process.env.SYNC_TOKEN || process.env.SYNC_TOKEN.length < 32)) {
           res.writeHead(503).end();
           return;
         }
-        if (
-          (url.pathname === "/api/unlock" ||
-            !validSession(req.headers.cookie, process.env.SYNC_TOKEN)) &&
-          !authorized(
-            req.headers.authorization?.replace(/^Bearer /, ""),
-            process.env.SYNC_TOKEN,
-          )
-        ) {
+        const authenticated = authConfig.mode === "tailscale"
+          ? trustedServeIdentity(req, authConfig)
+          : ((url.pathname !== "/api/unlock" && validSession(req.headers.cookie, process.env.SYNC_TOKEN)) ||
+             authorized(req.headers.authorization?.replace(/^Bearer /, ""), process.env.SYNC_TOKEN));
+        if (!authenticated) {
           authFailures++;
           res.writeHead(401).end();
+          return;
+        }
+        if (authConfig.mode === "tailscale" && url.pathname !== "/api/sync") {
+          res.writeHead(404).end();
           return;
         }
         if (
@@ -125,7 +129,7 @@ http
           parsed.changes,
         );
         res.setHeader("Content-Type", "application/json");
-        res.setHeader(
+        if (authConfig.mode === "token") res.setHeader(
           "Set-Cookie",
           "steadily_session=" +
             issueSession(process.env.SYNC_TOKEN) +

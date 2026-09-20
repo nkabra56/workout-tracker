@@ -1,3 +1,4 @@
+import { startAutomaticSync } from "./automatic-sync.js";
 import {
   templates,
   newSession,
@@ -48,9 +49,8 @@ const app = document.querySelector("#app"),
           "'": "&#39;",
         })[c],
     );
-let syncEnabled = localStorage.getItem("steadily-sync-enabled") === "yes";
-let syncToken = "",
-  syncBusy = false;
+let syncBusy = false;
+
 let definitions = structuredClone(templates),
   templateRecords = [],
   editing = null;
@@ -276,7 +276,7 @@ function preferences() {
       "You",
       "Private on this browser. Back up regularly.",
     ) +
-    `<article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", `Smallest load increase (${settings.unit})`, settings.increment)}<label>Diet preferences<textarea name="diet">${esc(settings.diet)}</textarea></label><h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<label>Body weight (${settings.bodyWeightUnit || settings.unit}, optional)<input name="bodyWeight" inputmode="decimal" type="number" min="0" step="any" value="${esc(settings.bodyWeight ?? "")}"></label><label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Private Pi sync</h2><p>Unlock with the private access key configured on your Pi. Sign in once on this device; regular sync renews your protected session automatically. The app does not store your raw key. Clearing browser data, a year without sync, or a server key change can require sign-in again. Sync retries while the app is open and connected; iOS does not guarantee background sync.</p><form id="sync-login"><label>Private access key<input name="token" type="password" autocomplete="current-password" minlength="32" required></label><button>Unlock & sync</button></form><button id="sync-now" class="secondary">Sync now</button> <button id="sync-lock" class="secondary">Lock sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
+    `<article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", `Smallest load increase (${settings.unit})`, settings.increment)}<label>Diet preferences<textarea name="diet">${esc(settings.diet)}</textarea></label><h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<label>Body weight (${settings.bodyWeightUnit || settings.unit}, optional)<input name="bodyWeight" inputmode="decimal" type="number" min="0" step="any" value="${esc(settings.bodyWeight ?? "")}"></label><label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Automatic Pi sync</h2><p>Your journal syncs automatically while Lifty is open and connected to your private Pi through Tailscale. Offline changes stay on this device and retry when the connection returns. No app sign-in is needed. iOS does not guarantee sync while the app is closed.</p><button id="sync-now" class="secondary">Retry sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
 }
 app.addEventListener("input", async (e) => {
   const t = e.target;
@@ -437,16 +437,6 @@ app.addEventListener("click", async (e) => {
           ? "Persistent storage granted"
           : "Browser did not grant persistence; keep backups.",
       );
-    if (t.id === "sync-lock") {
-      await fetch("/api/lock", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      syncEnabled = false;
-      syncToken = "";
-      localStorage.removeItem("steadily-sync-enabled");
-      toast("Sync locked on this device. Local journal remains available.");
-    }
     if (t.id === "sync-now") await syncNow();
     if (t.id === "export") {
       const blob = new Blob(
@@ -481,11 +471,6 @@ app.addEventListener("submit", async (e) => {
   const form = e.target,
     d = Object.fromEntries(new FormData(form));
   try {
-    if (form.id === "sync-login") {
-      syncToken = d.token;
-      form.reset();
-      await syncNow();
-    }
     if (form.id === "search") {
       form.querySelector("button").disabled = true;
       toast("Searching online…");
@@ -621,50 +606,28 @@ try {
 
 async function syncNow() {
   if (syncBusy || editing) return;
-  if (!syncToken && !syncEnabled) {
-    toast("Enter your Pi access key in You → Private Pi sync.");
-    return;
-  }
   syncBusy = true;
   try {
-    if (syncToken) {
-      const unlock = await fetch("/api/unlock", {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + syncToken,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!unlock.ok)
-        throw Error("Could not unlock Pi sync. Check the key and connection.");
-      syncToken = "";
-      syncEnabled = true;
-      localStorage.setItem("steadily-sync-enabled", "yes");
-    }
-    const conflicts = await sync("");
+    const conflicts = await sync();
     await load();
     if (active) active = sessions.find((s) => s.id === active.id);
-    document.querySelector("#status").textContent =
-      "Synced with Pi · " +
-      new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const pending = (await Promise.all(["sessions", "foods", "logs", "settings"].map(s => readAll(s, true)))).flat().some(r => r._dirty);
+    document.querySelector("#status").textContent = pending
+      ? "Saved on this device · pending Pi sync"
+      : "Synced with Pi · " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     if (conflicts) toast("Conflicting alternatives preserved in history.");
     if (!document.querySelector("input:focus,textarea:focus")) render();
   } catch (e) {
     document.querySelector("#status").textContent =
-      "Saved locally · sync pending";
-    toast(e.message);
+      ([401, 403].includes(e.status) ? "Saved locally · Pi access denied; check Tailscale account" : e.status === 503 ? "Saved locally · Pi sync is not configured" : "Saved locally · Pi unreachable; retrying automatically");
   } finally {
     syncBusy = false;
   }
 }
-window.addEventListener("online", () => {
-  if (syncEnabled) syncNow();
+startAutomaticSync(syncNow);
+window.addEventListener("offline", () => {
+  document.querySelector("#status").textContent = "Saved locally · offline; sync resumes when connected";
 });
-setInterval(() => {
-  if (syncEnabled && navigator.onLine) syncNow();
-}, 30000);
-
-if (syncEnabled && navigator.onLine) syncNow();
 
 async function handleEditor(t) {
   if (t.id === "editor-cancel") {

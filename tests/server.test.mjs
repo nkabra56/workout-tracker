@@ -96,3 +96,29 @@ test("HTTP service protects records, enforces origin and persists authenticated 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("Tailscale HTTP sync needs approved identity without keys or cookies and rejects token bypass", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "lifty-serve-"));
+  const child = spawn(process.execPath, ["server.mjs"], {
+    env: {...process.env, PORT:"5183", HOST:"127.0.0.1", DATA_DIR:directory, SYNC_AUTH:"tailscale", TAILSCALE_PROXY_ADDRESS:"127.0.0.1", TAILSCALE_ALLOWED_LOGINS:"owner@example.com", APP_ORIGIN:"https://journal.test", SYNC_TOKEN:"a".repeat(64)},
+    stdio:["ignore","pipe","pipe"]
+  });
+  try {
+    await new Promise((resolve,reject) => { child.stdout.once("data",resolve); child.once("error",reject); child.once("exit",code=>reject(Error("Server exit "+code))); });
+    const headers = {"Content-Type":"application/json",Origin:"https://journal.test"};
+    const request = (extra={}) => fetch("http://127.0.0.1:5183/api/sync",{method:"POST",headers:{...headers,...extra},body:'{"changes":[]}'});
+    assert.equal((await request()).status,401);
+    assert.equal((await request({Authorization:"Bearer "+"a".repeat(64)})).status,401);
+    assert.equal((await request({"Tailscale-User-Login":"other@example.com"})).status,401);
+    assert.equal((await request({"Tailscale-User-Login":"owner@example.com, other@example.com"})).status,401);
+    assert.equal((await request({"Tailscale-User-Login":"owner@example.com",Origin:"https://evil.test"})).status,403);
+    const response = await request({"Tailscale-User-Login":"owner@example.com"});
+    assert.equal(response.status,200);
+    assert.equal(response.headers.get("set-cookie"),null);
+    assert.deepEqual(await response.json(),[]);
+    assert.equal((await fetch("http://127.0.0.1:5183/api/unlock",{method:"POST",headers:{...headers,"Tailscale-User-Login":"owner@example.com"}})).status,404);
+  } finally {
+    child.kill(); await new Promise(resolve=>child.once("exit",resolve));
+    await rm(directory,{recursive:true,force:true});
+  }
+});
