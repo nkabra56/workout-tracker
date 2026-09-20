@@ -1,4 +1,9 @@
-import { authorized, syncDisk } from "./sync-server.mjs";
+import {
+  authorized,
+  syncDisk,
+  issueSession,
+  validSession,
+} from "./sync-server.mjs";
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -21,9 +26,12 @@ const types = {
   webmanifest: "application/manifest+json",
 };
 let lastSearch = 0;
+let authFailures=0, authWindow=Date.now();
 http
   .createServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Permissions-Policy","camera=(), microphone=(), geolocation=()");
+    if(process.env.APP_ORIGIN?.startsWith("https://"))res.setHeader("Strict-Transport-Security","max-age=31536000");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader(
       "Content-Security-Policy",
@@ -31,18 +39,23 @@ http
     );
     try {
       const url = new URL(req.url, "http://localhost");
-      if (url.pathname === "/api/sync") {
+      if (["/api/sync", "/api/unlock", "/api/lock"].includes(url.pathname)) {
         res.setHeader("Cache-Control", "no-store");
+        if(Date.now()-authWindow>60000){authWindow=Date.now();authFailures=0;}
+        if(authFailures>=30){res.setHeader("Retry-After","60");res.writeHead(429).end();return;}
         if (!process.env.SYNC_TOKEN || process.env.SYNC_TOKEN.length < 32) {
           res.writeHead(503).end();
           return;
         }
         if (
+          (url.pathname === "/api/unlock" ||
+            !validSession(req.headers.cookie, process.env.SYNC_TOKEN)) &&
           !authorized(
             req.headers.authorization?.replace(/^Bearer /, ""),
             process.env.SYNC_TOKEN,
           )
         ) {
+          authFailures++;
           res.writeHead(401).end();
           return;
         }
@@ -58,6 +71,22 @@ http
           !req.headers["content-type"]?.startsWith("application/json")
         ) {
           res.writeHead(405).end();
+          return;
+        }
+        if (url.pathname === "/api/unlock" || url.pathname === "/api/lock") {
+          const lock = url.pathname === "/api/lock";
+          const secure = process.env.APP_ORIGIN?.startsWith("https://")
+            ? "; Secure"
+            : "";
+          res.setHeader(
+            "Set-Cookie",
+            "steadily_session=" +
+              (lock ? "" : issueSession(process.env.SYNC_TOKEN)) +
+              "; HttpOnly; SameSite=Strict; Path=/api; Max-Age=" +
+              (lock ? "0" : "2592000") +
+              secure,
+          );
+          res.writeHead(204).end();
           return;
         }
         let body = "";

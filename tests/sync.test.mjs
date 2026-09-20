@@ -63,3 +63,18 @@ test("sync retries, stale edits and deletions preserve records", () => {
   ]);
   assert.equal(state["foods:a"].record._deleted, true);
 });
+
+test("signed browser sessions expire and reject tampering", async () => {
+  const { issueSession, validSession } = await import("../sync-server.mjs");
+  const secret = "a".repeat(64),
+    issued = issueSession(secret, 1000);
+  assert.equal(validSession("steadily_session=" + issued, secret, 2000), true);
+  assert.equal(
+    validSession("steadily_session=" + issued + "x", secret, 2000),
+    false,
+  );
+  assert.equal(
+    validSession("steadily_session=" + issued, secret, 31 * 86400000),
+    false,
+  );
+});

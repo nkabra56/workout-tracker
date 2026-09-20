@@ -46,6 +46,26 @@ test("HTTP service protects records, enforces origin and persists authenticated 
       "Content-Type": "application/json",
       Origin: "https://journal.test",
     };
+    const unlocked = await fetch(base + "/api/unlock", {
+      method: "POST",
+      headers,
+    });
+    assert.equal(unlocked.status, 204);
+    const cookie = unlocked.headers.get("set-cookie");
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /Secure/);
+    assert.match(cookie, /SameSite=Strict/);
+    const cookieHeaders = {
+      "Content-Type": "application/json",
+      Origin: "https://journal.test",
+      Cookie: cookie.split(";")[0],
+    };
+    const authenticated = await fetch(base + "/api/sync", {
+      method: "POST",
+      headers: cookieHeaders,
+      body: '{"changes":[]}',
+    });
+    assert.equal(authenticated.status, 200);
     const record = {
       id: "test-food",
       name: "Test food",

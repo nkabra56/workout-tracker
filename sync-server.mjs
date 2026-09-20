@@ -1,5 +1,5 @@
 import { validateRecord } from "./core.js";
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
 const digest = (x) =>
   createHash("sha256").update(JSON.stringify(x)).digest("hex");
@@ -66,4 +66,33 @@ export function syncDisk(directory, changes) {
   });
   queue = work.catch(() => {});
   return work;
+}
+
+export function issueSession(secret, now = Date.now()) {
+  const expires = String(now + 30 * 86400000);
+  return (
+    expires +
+    "." +
+    createHmac("sha256", secret).update(expires).digest("base64url")
+  );
+}
+export function validSession(cookie, secret, now = Date.now()) {
+  if (!secret || secret.length < 32) return false;
+  const value = (cookie || "")
+    .split(";")
+    .map((x) => x.trim())
+    .find((x) => x.startsWith("steadily_session="))
+    ?.slice(17);
+  if (!value) return false;
+  const [expiry, signature] = value.split(".");
+  if (
+    !/^\d+$/.test(expiry) ||
+    Number(expiry) <= now ||
+    Number(expiry) > now + 31 * 86400000
+  )
+    return false;
+  return authorized(
+    signature,
+    createHmac("sha256", secret).update(expiry).digest("base64url"),
+  );
 }

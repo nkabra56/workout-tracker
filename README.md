@@ -44,8 +44,14 @@ Food data has a separate license from MIT code: the OFF database is [ODbL](https
 
 ## Raspberry Pi deployment
 
-See [PI-DEPLOYMENT.md](PI-DEPLOYMENT.md). Deployment is prepared, not performed. Use private Tailscale Serve HTTPS and application authentication. Do not open router ports or enable Funnel. The public repository contains code only, never access keys, personal history, environment files or journal data.
+See [PI-DEPLOYMENT.md](PI-DEPLOYMENT.md). Use private Tailscale Serve HTTPS and application authentication. Do not open router ports or enable Funnel. The public repository contains code only, never access keys, personal history, environment files or journal data.
 
 ## Interface and verification
 
-Restrained system typography, generous spacing, 44px minimum buttons, bottom navigation, explicit labels and safe-area padding, informed by [Apple's interface guidance](https://developer.apple.com/design/tips/). Physical iPhone Safari installation/offline lifecycle and real Pi synchronization still need device acceptance testing after approved deployment. Automated tests cover routine invariants, recipe math, progression gating, retry/conflict semantics and auth rejection; local browser checks cover session rendering and persistence. No claim of absolute security is made.
+Restrained system typography, generous spacing, 44px minimum buttons, bottom navigation, explicit labels and safe-area padding, informed by [Apple's interface guidance](https://developer.apple.com/design/tips/). Physical iPhone Safari installation/offline lifecycle and real Pi synchronization still need device acceptance testing on a physical device. Automated tests cover routine invariants, recipe math, progression gating, retry/conflict semantics and auth rejection; local browser checks cover session rendering and persistence. No claim of absolute security is made.
+
+## Authentication and independent installations
+
+Every installation generates its own random 256-bit access key; none is shipped in source. A key signs in only to that installation. On private HTTPS, sign-in exchanges the key for a 30-day HttpOnly, Secure, SameSite=Strict cookie scoped to the API. The browser app does not store the raw key. Exact Origin checks protect state-changing requests; cookies and authorization headers are never forwarded to food providers. Lock sync clears this browser's cookie but leaves its offline journal available. Rotate the installation key and restart to invalidate all sessions, including a stolen cookie. This intentionally simple personal installation has no multi-user accounts or individual-device revocation system. Only authorize devices you control.
+
+Each person should run their own independent instance, data directory, private HTTPS hostname and generated key. Installing the frontend alone does not provide a private shared hosting service. See the repeatable installer in `deploy/install.sh`. The same-origin shell uses no third-party scripts. XSS defenses include escaped user text, typed record validation, CSP and explicit static file allowlisting. Device/browser compromise can still expose local journal data; this is not an encrypted vault or a guarantee against compromise.
