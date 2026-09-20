@@ -25,7 +25,7 @@ if (navigator.locks) {
   );
   if (!acquired) {
     document.body.textContent =
-      "Steadily is open in another tab. Close that tab, then reload here to edit safely.";
+      "Lifty is open in another tab. Close that tab, then reload here to edit safely.";
     await new Promise(() => {});
   }
 }
@@ -42,7 +42,7 @@ const app = document.querySelector("#app"),
           "'": "&#39;",
         })[c],
     );
-let syncEnabled=localStorage.getItem("steadily-sync-enabled")==="yes";
+let syncEnabled = localStorage.getItem("steadily-sync-enabled") === "yes";
 let syncToken = "",
   syncBusy = false;
 let sessions = [],
@@ -114,17 +114,14 @@ function workout() {
       .join("");
     return;
   }
-  app.innerHTML = heading(
-    "TRAINING",
-    "Your session",
-    "Every set saves on this device.",
-  );
+  app.innerHTML = "";
   app.innerHTML += `<section class="session"><div class="section-title"><div><p class="eyebrow">DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${templates[active.template].name}</h2></div><button id="close-session" class="secondary">Close</button></div><p>Dumbbells: load per hand. Each-arm sets: complete both sides.</p><div class="rest"><b>Manual rest</b><input aria-label="Rest seconds" id="rest-seconds" inputmode="decimal" type="number" min="1" max="1800" value="90"><button id="timer-start">Start</button><button id="timer-stop" class="secondary">Stop</button><output id="clock">Ready</output></div>${active.exercises
     .map((ex, i) => {
       const previous = sessions
         .filter(
           (s) =>
             s.finished &&
+            !s.conflictOf &&
             s.id !== active.id &&
             s.template === active.template &&
             s.unit === active.unit,
@@ -147,14 +144,14 @@ function nutrition() {
         .sort((a, b) => Number(b.favorite) - Number(a.favorite))
         .map(
           (f) =>
-            `<form class="food-row log-food" data-id="${f.id}"><button type="button" class="secondary" data-favorite="${f.id}" aria-label="Favorite ${esc(f.name)}">${f.favorite ? "★" : "☆"}</button><span><b>${esc(f.name)}</b><small>${esc(f.source)} · ${Math.round(f.kcal)} kcal/100g</small></span><label>grams<input name="grams" inputmode="decimal" type="number" min="1" value="${esc(f.serving || 100)}" required></label><button>Log</button></form>`,
+            `<form class="food-row log-food" data-id="${f.id}"><button type="button" class="secondary" data-favorite="${f.id}" aria-label="Favorite ${esc(f.name)}">${f.favorite ? "★" : "☆"}</button><span><b>${esc(f.name)}</b><small>${esc(f.source)}${f.conflictOf ? " · Alternative food version" : ""} · ${Math.round(f.kcal)} kcal/100g</small></span><label>grams<input name="grams" inputmode="decimal" type="number" min="1" value="${esc(f.serving || 100)}" required></label><button>Log</button></form>`,
         )
         .join("") || "<p>No saved foods yet. Add a label or recipe below.</p>"
-    }</article><article><h2>Today’s meals</h2>${daily.map((l) => `<div class="food-row"><span>${esc(l.food.name)} · ${l.grams}g<small>${Math.round((l.food.kcal * l.grams) / 100)} kcal</small></span><button class="secondary" data-delete-log="${l.id}">Remove</button></div>`).join("") || "<p>Your first meal starts here.</p>"}</article><article><h2>Add a custom food</h2><form id="custom"><label>Name<input name="name" required placeholder="e.g. household paneer or package label"></label><p>Nutrition per 100 grams</p><div class="fields">${macros.map((k) => num(k, k)).join("")}${num("serving", "Saved serving weight (g)", 100)}</div><label>Source<input name="source" value="User-entered estimate" required></label><button>Save food</button></form></article><article><h2>Your household recipe</h2><p>Add every ingredient, including oil or ghee. Use the final cooked batch weight to account for water gained or lost.</p><form id="ingredient"><label>Saved ingredient<select name="food">${foods.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join("")}</select></label>${num("grams", "Ingredient grams")}<button ${foods.length ? "" : "disabled"}>Add ingredient</button></form><ul>${ingredients.map((i) => `<li>${esc(i.food.name)} · ${i.grams}g</li>`).join("")}</ul><button id="clear-recipe" class="secondary">Clear ingredients</button><form id="recipe"><label>Recipe name<input name="name" required placeholder="Your dal, sabzi, khichdi…"></label>${num("yield", "Cooked batch weight (g)")}${num("serving", "Saved serving weight (g)", 150)}<button>Save recipe</button></form></article>`;
+    }</article><article><h2>Today’s meals</h2>${daily.some((l) => l.conflictOf) ? '<p role="status">Unresolved alternatives are preserved below and excluded from totals. Keep the original, or remove it and log the preferred version once.</p>' : ""}${daily.map((l) => `<div class="food-row"><span>${esc(l.food.name)} · ${l.grams}g${l.conflictOf ? "<small>Alternative — excluded from totals</small>" : ""}<small>${Math.round((l.food.kcal * l.grams) / 100)} kcal</small></span><button class="secondary" data-delete-log="${l.id}">Remove</button></div>`).join("") || "<p>Your first meal starts here.</p>"}</article><article><h2>Add a custom food</h2><form id="custom"><label>Name<input name="name" required placeholder="e.g. household paneer or package label"></label><p>Nutrition per 100 grams</p><div class="fields">${macros.map((k) => num(k, k)).join("")}${num("serving", "Saved serving weight (g)", 100)}</div><label>Source<input name="source" value="User-entered estimate" required></label><button>Save food</button></form></article><article><h2>Your household recipe</h2><p>Add every ingredient, including oil or ghee. Use the final cooked batch weight to account for water gained or lost.</p><form id="ingredient"><label>Saved ingredient<select name="food">${foods.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join("")}</select></label>${num("grams", "Ingredient grams")}<button ${foods.length ? "" : "disabled"}>Add ingredient</button></form><ul>${ingredients.map((i) => `<li>${esc(i.food.name)} · ${i.grams}g</li>`).join("")}</ul><button id="clear-recipe" class="secondary">Clear ingredients</button><form id="recipe"><label>Recipe name<input name="name" required placeholder="Your dal, sabzi, khichdi…"></label>${num("yield", "Cooked batch weight (g)")}${num("serving", "Saved serving weight (g)", 150)}<button>Save recipe</button></form></article>`;
 }
 function progress() {
   const completed = sessions
-    .filter((s) => s.finished)
+    .filter((s) => s.finished && !s.conflictOf)
     .sort((a, b) => a.date.localeCompare(b.date));
   const recent = completed.filter(
     (s) => Date.parse(s.date) >= Date.now() - 7 * 864e5,
@@ -187,7 +184,7 @@ function progress() {
         .reverse()
         .map(
           (s) =>
-            `<button class="history secondary" data-resume="${s.id}">${esc(s.date)} · ${templates[s.template].name} · ${s.finished ? "Complete" : "In progress"}${s.conflictOf ? " · Imported alternative" : ""}</button>`,
+            `<button class="history secondary" data-resume="${s.id}">${esc(s.date)} · ${templates[s.template].name} · ${s.finished ? "Complete" : "In progress"}${s.conflictOf ? " · Alternative — excluded from progress" : ""}</button>`,
         )
         .join("") || "<p>Finish a session to start your story.</p>"
     }</article>`;
@@ -276,7 +273,8 @@ app.addEventListener("click", async (e) => {
       active =
         sessions.find(
           (s) => !s.finished && s.template === Number(t.dataset.start),
-        ) || newSession(Number(t.dataset.start), settings.unit, settings.increment);
+        ) ||
+        newSession(Number(t.dataset.start), settings.unit, settings.increment);
       if (!sessions.includes(active)) sessions.push(active);
       await save("sessions", active);
       workout();
@@ -329,7 +327,16 @@ app.addEventListener("click", async (e) => {
           ? "Persistent storage granted"
           : "Browser did not grant persistence; keep backups.",
       );
-    if(t.id==='sync-lock'){await fetch('/api/lock',{method:'POST',headers:{'Content-Type':'application/json'}});syncEnabled=false;syncToken='';localStorage.removeItem('steadily-sync-enabled');toast('Sync locked on this device. Local journal remains available.');}
+    if (t.id === "sync-lock") {
+      await fetch("/api/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      syncEnabled = false;
+      syncToken = "";
+      localStorage.removeItem("steadily-sync-enabled");
+      toast("Sync locked on this device. Local journal remains available.");
+    }
     if (t.id === "sync-now") await syncNow();
     if (t.id === "export") {
       const blob = new Blob(
@@ -431,7 +438,14 @@ app.addEventListener("submit", async (e) => {
         ...settings,
         unit: d.unit,
         increment: convertWeight(Number(d.increment), settings.unit, d.unit),
-        bodyWeight: d.bodyWeight === "" ? "" : convertWeight(Number(d.bodyWeight), settings.bodyWeightUnit || settings.unit, d.unit),
+        bodyWeight:
+          d.bodyWeight === ""
+            ? ""
+            : convertWeight(
+                Number(d.bodyWeight),
+                settings.bodyWeightUnit || settings.unit,
+                d.unit,
+              ),
         bodyWeightUnit: d.unit,
         diet: d.diet,
         measurements: d.measurements,
@@ -490,8 +504,21 @@ async function syncNow() {
   }
   syncBusy = true;
   try {
-    if(syncToken){const unlock=await fetch('/api/unlock',{method:'POST',headers:{Authorization:'Bearer '+syncToken,'Content-Type':'application/json'}});if(!unlock.ok)throw Error('Could not unlock Pi sync. Check the key and connection.');syncToken='';syncEnabled=true;localStorage.setItem('steadily-sync-enabled','yes');}
-    const conflicts = await sync('');
+    if (syncToken) {
+      const unlock = await fetch("/api/unlock", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + syncToken,
+          "Content-Type": "application/json",
+        },
+      });
+      if (!unlock.ok)
+        throw Error("Could not unlock Pi sync. Check the key and connection.");
+      syncToken = "";
+      syncEnabled = true;
+      localStorage.setItem("steadily-sync-enabled", "yes");
+    }
+    const conflicts = await sync("");
     await load();
     if (active) active = sessions.find((s) => s.id === active.id);
     document.querySelector("#status").textContent =
@@ -514,4 +541,4 @@ setInterval(() => {
   if (syncEnabled && navigator.onLine) syncNow();
 }, 30000);
 
-if(syncEnabled&&navigator.onLine)syncNow();
+if (syncEnabled && navigator.onLine) syncNow();

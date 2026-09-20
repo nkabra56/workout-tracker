@@ -16,6 +16,9 @@ const allowed = new Set([
   "style.css",
   "sw.js",
   "icon.svg",
+  "icon-192.png",
+  "icon-512.png",
+  "apple-touch-icon.png",
   "manifest.webmanifest",
 ]);
 const types = {
@@ -23,15 +26,21 @@ const types = {
   js: "text/javascript",
   css: "text/css",
   svg: "image/svg+xml",
+  png: "image/png",
   webmanifest: "application/manifest+json",
 };
 let lastSearch = 0;
-let authFailures=0, authWindow=Date.now();
+let authFailures = 0,
+  authWindow = Date.now();
 http
   .createServer(async (req, res) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Permissions-Policy","camera=(), microphone=(), geolocation=()");
-    if(process.env.APP_ORIGIN?.startsWith("https://"))res.setHeader("Strict-Transport-Security","max-age=31536000");
+    res.setHeader(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=()",
+    );
+    if (process.env.APP_ORIGIN?.startsWith("https://"))
+      res.setHeader("Strict-Transport-Security", "max-age=31536000");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader(
       "Content-Security-Policy",
@@ -41,8 +50,15 @@ http
       const url = new URL(req.url, "http://localhost");
       if (["/api/sync", "/api/unlock", "/api/lock"].includes(url.pathname)) {
         res.setHeader("Cache-Control", "no-store");
-        if(Date.now()-authWindow>60000){authWindow=Date.now();authFailures=0;}
-        if(authFailures>=30){res.setHeader("Retry-After","60");res.writeHead(429).end();return;}
+        if (Date.now() - authWindow > 60000) {
+          authWindow = Date.now();
+          authFailures = 0;
+        }
+        if (authFailures >= 30) {
+          res.setHeader("Retry-After", "60");
+          res.writeHead(429).end();
+          return;
+        }
         if (!process.env.SYNC_TOKEN || process.env.SYNC_TOKEN.length < 32) {
           res.writeHead(503).end();
           return;
@@ -127,7 +143,7 @@ http
           ? `https://world.openfoodfacts.org/api/v2/product/${q}?fields=${fields}`
           : `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${fields}`;
         const r = await fetch(endpoint, {
-          headers: { "User-Agent": "Steadily/1.0 (private nutrition journal)" },
+          headers: { "User-Agent": "Lifty/1.0 (private nutrition journal)" },
           signal: AbortSignal.timeout(12000),
         });
         if (!r.ok) throw Error("upstream");
@@ -178,6 +194,6 @@ http
     process.env.HOST || "127.0.0.1",
     () =>
       console.log(
-        "Steadily listening on loopback port " + (process.env.PORT || 5173),
+        "Lifty listening on loopback port " + (process.env.PORT || 5173),
       ),
   );

@@ -643,3 +643,56 @@ nav a {
     padding: 14px 12px;
   }
 }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand img {
+  display: block;
+  border-radius: 9px;
+}
+.equipment {
+  padding: 0;
+  margin: 0;
+  border-bottom: 0;
+}
+.equipment summary {
+  padding-top: 10px;
+}
+.set-row input[type="checkbox"],
+#technique {
+  appearance: none;
+  border: 1px solid #526077;
+  border-radius: 10px;
+  background: #0d121d;
+  display: grid;
+  place-content: center;
+}
+.set-row input[type="checkbox"]:checked,
+#technique:checked {
+  background: #3c83ef;
+  border-color: #3c83ef;
+}
+.set-row input[type="checkbox"]:checked::after,
+#technique:checked::after {
+  content: "✓";
+  font-size: 24px;
+  color: #fff;
+}
+.session {
+  padding-top: 12px;
+}
+.session > .section-title {
+  align-items: center;
+}
+.session > .section-title h2 {
+  margin-bottom: 0;
+  font-size: 27px;
+}
+.session > .section-title .eyebrow {
+  margin-top: 0;
+}
+.session .rest {
+  margin-top: 12px;
+}

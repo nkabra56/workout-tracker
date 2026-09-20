@@ -60,7 +60,11 @@ export const templates = [
   },
 ];
 export const day = () => new Date().toLocaleDateString("en-CA");
-export function newSession(template, unit = "lb", increment = unit === "lb" ? 2.5 : 1) {
+export function newSession(
+  template,
+  unit = "lb",
+  increment = unit === "lb" ? 2.5 : 1,
+) {
   return {
     id: uid(),
     date: day(),
@@ -116,7 +120,9 @@ export function totals(logs) {
   return Object.fromEntries(
     macros.map((k) => [
       k,
-      logs.reduce((n, l) => n + (Number(l.food[k]) * l.grams) / 100, 0),
+      logs
+        .filter((l) => !l.conflictOf && !l._deleted)
+        .reduce((n, l) => n + (Number(l.food[k]) * l.grams) / 100, 0),
     ]),
   );
 }
@@ -199,4 +205,15 @@ export function validateRecord(store, r) {
   return true;
 }
 
-export function convertWeight(value,from,to){if(!['lb','kg'].includes(from)||!['lb','kg'].includes(to)||!Number.isFinite(Number(value)))throw Error('Invalid weight conversion');if(from===to)return Number(value);return from==='lb'?Number(value)*0.45359237:Number(value)/0.45359237;}
+export function convertWeight(value, from, to) {
+  if (
+    !["lb", "kg"].includes(from) ||
+    !["lb", "kg"].includes(to) ||
+    !Number.isFinite(Number(value))
+  )
+    throw Error("Invalid weight conversion");
+  if (from === to) return Number(value);
+  return from === "lb"
+    ? Number(value) * 0.45359237
+    : Number(value) / 0.45359237;
+}

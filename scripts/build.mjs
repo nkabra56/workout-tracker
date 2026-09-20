@@ -8,6 +8,9 @@ for (const file of [
   "style.css",
   "sw.js",
   "icon.svg",
+  "icon-192.png",
+  "icon-512.png",
+  "apple-touch-icon.png",
   "manifest.webmanifest",
 ])
   await copyFile(file, "dist/" + file);

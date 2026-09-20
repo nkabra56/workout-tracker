@@ -1,4 +1,4 @@
-const CACHE = "steadily-v6";
+const CACHE = "steadily-v7";
 const ASSETS = [
   "/",
   "/index.html",
@@ -7,6 +7,9 @@ const ASSETS = [
   "/core.js",
   "/storage.js",
   "/icon.svg",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
   "/manifest.webmanifest",
 ];
 self.addEventListener("install", (event) =>

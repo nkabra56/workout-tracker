@@ -62,5 +62,26 @@ test("backup retries deduplicate and differing records survive", () => {
   assert.equal(once[0].v, 1);
 });
 
-test('pounds are default while explicit kg sessions remain kg',()=>{assert.equal(newSession(0).unit,'lb');assert.equal(newSession(0).exercises[0].increment,2.5);assert.equal(newSession(0,'kg').unit,'kg');});
-test('weight conversion changes magnitude, never relabels it',async()=>{const {convertWeight}=await import('../core.js');assert.ok(Math.abs(convertWeight(100,'lb','kg')-45.359237)<1e-8);assert.ok(Math.abs(convertWeight(45.359237,'kg','lb')-100)<1e-8);assert.equal(convertWeight(20,'kg','kg'),20);assert.throws(()=>convertWeight(1,'grams','lb'));});
+test("pounds are default while explicit kg sessions remain kg", () => {
+  assert.equal(newSession(0).unit, "lb");
+  assert.equal(newSession(0).exercises[0].increment, 2.5);
+  assert.equal(newSession(0, "kg").unit, "kg");
+});
+test("weight conversion changes magnitude, never relabels it", async () => {
+  const { convertWeight } = await import("../core.js");
+  assert.ok(Math.abs(convertWeight(100, "lb", "kg") - 45.359237) < 1e-8);
+  assert.ok(Math.abs(convertWeight(45.359237, "kg", "lb") - 100) < 1e-8);
+  assert.equal(convertWeight(20, "kg", "kg"), 20);
+  assert.throws(() => convertWeight(1, "grams", "lb"));
+});
+
+test("unresolved alternatives and tombstones never inflate nutrition totals", () => {
+  const food = { kcal: 100, protein: 10, carbs: 12, fat: 3 };
+  const result = totals([
+    { id: "a", food, grams: 100 },
+    { id: "b", conflictOf: "a", food, grams: 300 },
+    { id: "c", _deleted: true, food, grams: 200 },
+  ]);
+  assert.equal(result.kcal, 100);
+  assert.equal(result.protein, 10);
+});

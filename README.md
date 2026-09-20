@@ -1,4 +1,4 @@
-# Steadily
+# Lifty
 
 A private, offline-first workout and nutrition journal for iPhone and Raspberry Pi 4B. Plain JavaScript modules, IndexedDB, a service worker, and a dependency-free Node server. No build framework or package installation required.
 
@@ -30,7 +30,7 @@ Equivalent npm scripts are provided. `dist/` contains the static offline shell; 
 
 ## Storage and conflict behavior
 
-Browser edits are marked dirty in the same IndexedDB record write. Sync uploads dirty records with their last server version. The server serializes updates and atomically renames a private JSON file. Matching retries are no-ops. Stale changes become deterministically identified alternative records; neither version is overwritten. Deleted meal records are tombstones so reconnecting devices cannot silently resurrect them. Changes made during an in-flight sync are left dirty for the next pass. Alternatives in session history can be reviewed; advanced conflict resolution and undo UI are future work. Food/log alternatives remain separate visible entries and can double-count totals until manually reviewed. Browser tab locking prevents two tabs editing a stale local snapshot on browsers supporting Web Locks.
+Browser edits are marked dirty in the same IndexedDB record write. Sync uploads dirty records with their last server version. The server serializes updates and atomically renames a private JSON file. Matching retries are no-ops. Stale changes become deterministically identified alternative records; neither version is overwritten. Deleted meal records are tombstones so reconnecting devices cannot silently resurrect them. Changes made during an in-flight sync are left dirty for the next pass. Alternatives in session history can be reviewed; advanced conflict resolution and undo UI are future work. Food/log alternatives remain labeled for review. Unresolved log alternatives are excluded from calorie and macro totals; alternative sessions are excluded from progress counts. To use a preferred meal alternative, remove the original and log the preferred food/portion once. Browser tab locking prevents two tabs editing a stale local snapshot on browsers supporting Web Locks.
 
 Browser storage is not app-encrypted and may be evicted; request persistence and keep backups. The Pi JSON database is not encrypted at rest. Atomic renaming protects partial writes, but power loss, SD-card failure and full disks still require backup/recovery planning. This is a single-person journal; the access key grants access to the entire journal. It is not a multi-user account system or a medically validated product.
 
