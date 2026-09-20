@@ -68,8 +68,7 @@ let sessions = [],
     schedule: [0, 1, 2, 3, -1, 4, -1],
     diet: "",
   },
-  active,
-  timerEnd = 0;
+  active;
 const num = (name, label, value = "", step = "any") =>
   `<label>${label}<input name="${name}" inputmode="decimal" type="number" min="0" step="${step}" value="${esc(value)}" required></label>`;
 const toast = (s) => {
@@ -194,7 +193,7 @@ function workout() {
       (view==='routines'?workoutRoutines():view==='history'?workoutHistory():workoutChooser());
     return;
   }
-  app.innerHTML = `<a class="back-link" href="#workout/history">← All sessions</a><section class="session compact-session"><div class="session-heading"><div><p class="eyebrow">ROUTINE DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><div class="session-actions">${active.finished ? "" : `<button id="edit-session" class="secondary" aria-label="Edit this workout">Edit</button>`}<button id="close-session" class="secondary">Close</button></div></div>${active.finished ? '<p class="read-only-note">Completed · read-only snapshot</p>' : `<label class="date-control session-date"><span>${active.date>day()?"Planned date":"Workout date"}</span><input id="session-date" type="date" value="${active.date}" required></label>${active.date>day()?'<p>Planned only. Completion is available on the workout date; correct the date if needed.</p>':""}`}<div class="rest compact-rest"><b>Rest</b><input aria-label="Manual rest seconds" id="rest-seconds" inputmode="numeric" type="number" min="1" max="1800" value="90"><button id="timer-start">Start</button><button id="timer-stop" class="secondary">Stop</button><output id="clock" aria-live="off">Ready</output></div>${active.exercises
+  app.innerHTML = `<a class="back-link" href="#workout/history">← All sessions</a><section class="session compact-session"><div class="session-heading"><div><p class="eyebrow">ROUTINE DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><div class="session-actions">${active.finished ? "" : `<button id="edit-session" class="secondary" aria-label="Edit this workout">Edit</button>`}<button id="close-session" class="secondary">Close</button></div></div>${active.finished ? '<p class="read-only-note">Completed · read-only snapshot</p>' : `<label class="date-control session-date"><span>${active.date>day()?"Planned date":"Workout date"}</span><input id="session-date" type="date" value="${active.date}" required></label>${active.date>day()?'<p>Planned only. Completion is available on the workout date; correct the date if needed.</p>':""}`}${active.exercises
     .map((ex, i) => {
       const previous = sessions
         .filter(
@@ -394,11 +393,6 @@ app.addEventListener("click", async (e) => {
       location.hash = "workout/history";
       render();
     }
-    if (t.id === "timer-start") {
-      const n = Number(document.querySelector("#rest-seconds").value);
-      if (n > 0 && n <= 1800) timerEnd = Date.now() + n * 1000;
-    }
-    if (t.id === "timer-stop") timerEnd = 0;
     if (t.id === "persist")
       toast(
         (await navigator.storage?.persist())
@@ -463,16 +457,6 @@ app.addEventListener("submit", async (e) => {
     toast(err.message);
   }
 });
-setInterval(() => {
-  const el = document.querySelector("#clock");
-  if (!el) return;
-  const remaining = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
-  el.textContent = timerEnd
-    ? remaining
-      ? `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, "0")}`
-      : "Rest complete"
-    : "Ready";
-}, 250);
 async function load() {
   [sessions, foods, logs] = await Promise.all(
     ["sessions", "foods", "logs"].map(name => readAll(name)),

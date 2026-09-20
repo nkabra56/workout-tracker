@@ -430,38 +430,6 @@ article {
   font-size: 11px;
   line-height: 1.5;
 }
-.rest {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid #2c405e;
-  background: #080f1a;
-  border-radius: 14px;
-  margin: 14px 0 20px;
-  flex-wrap: wrap;
-}
-.rest b {
-  font-size: 11px;
-  font-weight: 600;
-  flex-basis: 100%;
-  color: #c4d9f8;
-}
-.rest input {
-  width: 66px;
-  margin: 0;
-  padding: 10px;
-  font-size: 15px;
-}
-.rest button {
-  font-size: 12px;
-  padding: 10px 14px;
-}
-.rest output {
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-  color: #c7d8ef;
-}
 .exercise {
   padding: 18px;
   margin: 14px 0;
@@ -768,9 +736,6 @@ nav a.selected {
     padding: 6px 12px;
     min-width: 69px;
   }
-  .rest output {
-    font-size: 11px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   * {
@@ -901,34 +866,6 @@ nav {
 }
 .compact-session {
   padding-top: 0;
-}
-.compact-rest {
-  flex-wrap: nowrap;
-  padding: 8px;
-  gap: 6px;
-  margin: 12px 0;
-}
-.compact-rest b {
-  flex-basis: auto;
-  font-size: 11px;
-  min-width: 27px;
-}
-.compact-rest input {
-  width: 54px;
-  min-width: 44px;
-  max-width: 54px;
-  padding: 10px 6px;
-  min-height: 44px;
-}
-.compact-rest button {
-  padding: 10px 12px;
-  min-height: 44px;
-}
-.compact-rest output {
-  margin-left: auto;
-  font-size: 11px;
-  min-width: 34px;
-  white-space: nowrap;
 }
 .compact-exercise {
   padding: 13px 14px;
@@ -1061,16 +998,6 @@ nav {
   .session-actions button {
     padding: 10px;
   }
-  .compact-rest {
-    gap: 5px;
-  }
-  .compact-rest button {
-    padding: 10px;
-  }
-  .compact-rest output {
-    min-width: 30px;
-    font-size: 10px;
-  }
 }
 .compact-exercise .equipment summary,
 .previous-data summary {
@@ -1145,7 +1072,6 @@ button, input, select, textarea, .secondary, .weight-log-action, .day-pill, .rou
 .history strong { font-size: 14px; }
 .history span { color: var(--muted); font-size: 11px; line-height: 1.5; }
 .compact-exercise { background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 18px 0; }
-.compact-rest { border-radius: 6px; }
 .metrics { gap: 14px; }
 .metrics article { border: 0; border-left: 1px solid var(--line); padding: 8px 14px; margin: 0; }
 .metrics strong { margin-top: 6px; }
@@ -1194,7 +1120,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--blue); }
 .section-card:last-child { border-bottom: 0; }
 .section-card.primary-link { border: 0; border-radius: 20px; background: #0e2038; padding: 20px; }
 .history { border-radius: 16px; background: #0c1119; border: 0; padding: 18px; margin: 10px 0; }
-.compact-rest { border-radius: 18px; background: #0b1421; border-color: #21334a; padding: 10px; }
 .compact-exercise { margin: 14px 0 24px; padding: 18px 0 24px; }
 .compact-exercise h3 { border-left: 0; padding-left: 0; display: flex; align-items: center; gap: 10px; }
 .compact-exercise .ordinal { display: inline-grid; place-items: center; background: #112642; color: #92c4ff; border-radius: 10px; min-width: 30px; height: 30px; margin: 0; }
@@ -1210,6 +1135,5 @@ nav a:active { transform: scale(.94); }
 @media (max-width: 350px) {
   .workout-hero { padding: 18px; }
   .template-grid { padding: 0 13px; }
-  .compact-rest { gap: 5px; padding: 8px; }
   nav { gap: 6px; }
 }
