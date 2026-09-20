@@ -1,3 +1,4 @@
+import { routeFor, sectionLinks } from "./navigation.js";
 import { renderProgress, legacyWeighIn } from "./progress.js";
 import { startAutomaticSync } from "./automatic-sync.js";
 import {
@@ -9,8 +10,6 @@ import {
   day,
   uid,
   macros,
-  recipe,
-  totals,
   suggestion,
   mergeRecords,
   validateRecord,
@@ -67,12 +66,9 @@ let sessions = [],
     unit: "lb",
     increment: 2.5,
     schedule: [0, 1, 2, 3, -1, 4, -1],
-    diet: "Vegetarian; dairy and eggs optional",
+    diet: "",
   },
   active,
-  selectedDate = day(),
-  ingredients = [],
-  results = [],
   timerEnd = 0;
 const num = (name, label, value = "", step = "any") =>
   `<label>${label}<input name="${name}" inputmode="decimal" type="number" min="0" step="${step}" value="${esc(value)}" required></label>`;
@@ -97,7 +93,8 @@ function heading(kicker, title, subtitle) {
   return `<div class="intro"><p class="eyebrow">${kicker}</p><h1>${title}</h1><p>${subtitle}</p></div>`;
 }
 function render() {
-  if (editing) {
+  const currentRoute = routeFor(location.hash);
+  if (editing && currentRoute.area === "workout") {
     app.innerHTML = renderEditor(
       editing,
       !!active && !active.finished && active.template === editing.day,
@@ -105,15 +102,19 @@ function render() {
     );
     return;
   }
-  const route = location.hash.slice(1) || "today";
+  const route = currentRoute.area;
+  if (route === "workout") active = currentRoute.section === "session" ? sessions.find(s=>s.id===currentRoute.id) : null;
   document
     .querySelectorAll("nav a")
-    .forEach((a) => a.classList.toggle("selected", a.hash === `#${route}`));
+    .forEach((a) => {
+      const selected = a.hash === `#${route}`;
+      a.classList.toggle("selected", selected);
+      if (selected) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
   (
     ({
       today: today,
       workout: workout,
-      nutrition: nutrition,
       progress: progress,
       settings: preferences,
     })[route] || workout
@@ -130,7 +131,6 @@ function today() {
       !s.conflictOf && !s._deleted && s.date <= date &&
       Date.parse(s.date + "T12:00:00") >= start.getTime(),
   );
-  const daily = totals(logs.filter((l) => l.date === date));
   const pending = sessions
     .filter((s) => !s.finished && !s.conflictOf && !s._deleted && s.date <= date)
     .sort((a, b) =>
@@ -159,14 +159,21 @@ function today() {
     },
   ).join(
     "",
-  )}</div><article class="workout-hero"><div class="hero-top"><span class="eyebrow">${pending ? "CONTINUE YOUR SESSION" : scheduled < 0 ? "REST DAY · YOUR NEXT WORKOUT" : "YOUR WORKOUT"}</span><span class="day-pill">Day ${chosen + 1}</span></div><h2>${esc(def.name)}</h2><p>${def.exercises.length} exercises <span>·</span> ${count} working sets <span>·</span> ${pending ? pending.unit : settings.unit}</p>${pending ? `<div class="session-progress"><progress value="${complete}" max="${count}" aria-label="Completed sets"></progress><small>${complete} of ${count} sets complete</small></div>` : ""}<button class="primary-wide" ${pending ? `data-resume="${pending.id}"` : `data-choose="${chosen}"`}>${pending ? "Resume workout" : "Choose date & workout"} <span aria-hidden="true">→</span></button><a class="subtle-link" href="#workout">Choose any date or routine</a></article><div class="section-title section-label"><h2>Daily nutrition</h2><a href="#nutrition">Log food +</a></div><article class="daily-fuel"><div><small>CALORIES LOGGED</small><strong>${Math.round(daily.kcal)} <span>kcal</span></strong></div><div class="macro-line">${["protein", "carbs", "fat"].map((k) => `<div><span>${k[0].toUpperCase() + k.slice(1)}</span><b>${Math.round(daily[k])}<small>g</small></b></div>`).join("")}</div></article><div class="section-title section-label"><h2>This week</h2><a href="#progress">View progress →</a></div><article class="week-summary"><div><strong>${week.length}</strong><span>sessions completed</span></div><p>Logged on your actual workout dates.<br>Build consistency at your own pace.</p></article>`;
+  )}</div><article class="workout-hero"><div class="hero-top"><span class="eyebrow">${pending ? "CONTINUE YOUR SESSION" : scheduled < 0 ? "REST DAY · YOUR NEXT WORKOUT" : "YOUR WORKOUT"}</span><span class="day-pill">Day ${chosen + 1}</span></div><h2>${esc(def.name)}</h2><p>${def.exercises.length} exercises <span>·</span> ${count} working sets <span>·</span> ${pending ? pending.unit : settings.unit}</p>${pending ? `<div class="session-progress"><progress value="${complete}" max="${count}" aria-label="Completed sets"></progress><small>${complete} of ${count} sets complete</small></div>` : ""}<button class="primary-wide" ${pending ? `data-resume="${pending.id}"` : `data-choose="${chosen}"`}>${pending ? "Resume workout" : "Choose date & workout"} <span aria-hidden="true">→</span></button><a class="subtle-link" href="#workout/log">Choose any date or routine</a></article><div class="section-title section-label"><h2>This week</h2><a href="#progress/activity">Activity →</a></div><article class="week-summary"><div><strong>${week.length}</strong><span>sessions completed</span></div><p>Logged on your actual workout dates.<br>Build consistency at your own pace.</p></article><div class="section-cards today-links"><a class="section-card" href="#progress/body"><strong>Body weight</strong><span>Log a measurement or view your trend →</span></a><a class="section-card" href="#progress/exercises"><strong>Exercise charts</strong><span>Loads, reps and volume over time →</span></a></div>`;
 }
 const personIcon =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>';
 function workoutChooser() {
   const existing = sessionsOnDate(sessions, workoutDate, workoutRoutine);
   const pending = existing.filter(s => !s.finished);
-  return `<article class="workout-picker"><h2>Choose your workout</h2><p>Routine Day 1–5 is a plan label, not a weekday. Pick any routine for any calendar date.</p><form id="workout-start"><label class="date-control"><span>Workout date</span><input id="workout-date" name="date" type="date" value="${workoutDate}" required></label><label>Routine<select id="workout-routine" name="routine">${definitions.map((d,i)=>`<option value="${i}" ${i===workoutRoutine?'selected':''}>Day ${i+1} · ${esc(d.name)}</option>`).join('')}</select></label><p>${workoutDate>day()?'Future date · planned session. It will not count as completed training.':'Log your workout on this date, regardless of your optional weekly schedule.'}</p><button ${pending.length>1?'disabled':''}>${pending.length===1?'Resume this workout':pending.length>1?'Choose an existing session below':existing.length?'Start another session':workoutDate>day()?'Plan workout':'Start workout'}</button></form>${existing.length?`<div class="existing-workouts"><h3>Already on ${workoutDate}</h3>${existing.map((r,i)=>`<button class="secondary history" data-resume="${r.id}">${r.finished?'View completed':r.date>day()?'Open planned':'Resume'} session ${i+1} · ${esc(r.title || definitions[r.template].name)}</button>`).join('')}${pending.length?'<button class="secondary" id="workout-additional">Start a separate session</button>':''}</div>`:''}</article><details><summary>Customize your routines</summary><div class="template-grid">${definitions.map((t,i)=>`<div class="template-choice"><button class="template" data-choose="${i}"><small>ROUTINE DAY ${i+1}</small><strong>${esc(t.name)}</strong><span>Select this routine</span></button><button class="secondary edit-template" data-edit-template="${i}">Edit workout</button></div>`).join('')}</div></details><details><summary>Other unfinished / planned sessions</summary>${sessions.filter(r=>!r.finished&&!r._deleted&&!r.conflictOf&&!existing.includes(r)).map(r=>`<button class="history secondary" data-resume="${r.id}">${r.date>day()?'Planned':'Resume'} · ${r.date} · ${esc(r.title||definitions[r.template].name)}</button>`).join('')||'<p>None.</p>'}</details>`;
+  return `<article class="workout-picker"><h2>Choose your workout</h2><p>Routine Day 1–5 is a plan label, not a weekday. Pick any routine for any calendar date.</p><form id="workout-start"><label class="date-control"><span>Workout date</span><input id="workout-date" name="date" type="date" value="${workoutDate}" required></label><label>Routine<select id="workout-routine" name="routine">${definitions.map((d,i)=>`<option value="${i}" ${i===workoutRoutine?'selected':''}>Day ${i+1} · ${esc(d.name)}</option>`).join('')}</select></label><p>${workoutDate>day()?'Future date · planned session. It will not count as completed training.':'Log your workout on this date, regardless of your optional weekly schedule.'}</p><button ${pending.length>1?'disabled':''}>${pending.length===1?'Resume this workout':pending.length>1?'Choose an existing session below':existing.length?'Start another session':workoutDate>day()?'Plan workout':'Start workout'}</button></form>${existing.length?`<div class="existing-workouts"><h3>Already on ${workoutDate}</h3>${existing.map((r,i)=>`<button class="secondary history" data-resume="${r.id}">${r.finished?'View completed':r.date>day()?'Open planned':'Resume'} session ${i+1} · ${esc(r.title || definitions[r.template].name)}</button>`).join('')}${pending.length?'<button class="secondary" id="workout-additional">Start a separate session</button>':''}</div>`:''}</article><div class="section-cards"><a class="section-card" href="#workout/routines"><strong>Workout routines</strong><span>Browse and edit your five templates →</span></a><a class="section-card" href="#workout/history"><strong>Session history</strong><span>Resume, review or open a planned workout →</span></a></div>`;
+}
+function workoutRoutines() {
+  return `<p>Day numbers label routines. Choose any one on any date.</p><div class="template-grid">${definitions.map((t,i)=>`<div class="template-choice"><button class="template" data-choose="${i}"><small>ROUTINE DAY ${i+1} · ${t.exercises.length} EXERCISES</small><strong>${esc(t.name)}</strong><span>Choose date & start →</span></button><button class="secondary edit-template" data-edit-template="${i}">Edit</button></div>`).join('')}</div>`;
+}
+function workoutHistory() {
+  const records = [...sessions].filter(s=>!s._deleted).sort((a,b)=>b.date.localeCompare(a.date));
+  return `<h2>Session history</h2><p>Every recorded workout, on its actual date.</p>${records.map((r,i)=>`<button class="history secondary" data-resume="${r.id}"><strong>${esc(r.title||definitions[r.template].name)}</strong><span>${r.date} · ${r.conflictOf?'Alternative · excluded from totals':r.finished?'Completed':r.date>day()?'Planned':'In progress'}${r.createdAt?' · '+esc(new Date(r.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):''}</span></button>`).join('')||'<p>No sessions yet. Choose a date and routine to begin.</p>'}<a class="section-card" href="#progress/exercises"><strong>Exercise progress</strong><span>Compare recorded loads, reps and volume →</span></a>`;
 }
 async function startSelectedWorkout(separate = false) {
   if (!validDate(workoutDate)) throw Error("Choose a valid workout date");
@@ -178,18 +185,16 @@ async function startSelectedWorkout(separate = false) {
     active = newSession(workoutRoutine, settings.unit, settings.increment, definitions[workoutRoutine], workoutDate);
     sessions.push(active); await save("sessions", active);
   }
-  location.hash = "workout"; workout();
+  location.hash = "workout/session/" + active.id; workout();
 }
 function workout() {
-  app.innerHTML =
-    heading(
-      "YOUR TRAINING JOURNAL",
-      "Workout",
-      "Your plan. Make it your own.",
-    ) +
-    workoutChooser();
-  if (!active) return;
-  app.innerHTML = `<section class="session compact-session"><div class="session-heading"><div><p class="eyebrow">ROUTINE DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><div class="session-actions">${active.finished ? "" : `<button id="edit-session" class="secondary" aria-label="Edit this workout">Edit</button>`}<button id="close-session" class="secondary">Close</button></div></div>${active.finished ? '<p class="read-only-note">Completed · read-only snapshot</p>' : `<label class="date-control session-date"><span>${active.date>day()?"Planned date":"Workout date"}</span><input id="session-date" type="date" value="${active.date}" required></label>${active.date>day()?'<p>Planned only. Completion is available on the workout date; correct the date if needed.</p>':""}`}<div class="rest compact-rest"><b>Rest</b><input aria-label="Manual rest seconds" id="rest-seconds" inputmode="numeric" type="number" min="1" max="1800" value="90"><button id="timer-start">Start</button><button id="timer-stop" class="secondary">Stop</button><output id="clock" aria-live="off">Ready</output></div>${active.exercises
+  const view=routeFor(location.hash).section;
+  if (!active) {
+    app.innerHTML = heading('YOUR TRAINING JOURNAL','Train','') + sectionLinks('workout',view==='session'?'log':view) +
+      (view==='routines'?workoutRoutines():view==='history'?workoutHistory():workoutChooser());
+    return;
+  }
+  app.innerHTML = `<a class="back-link" href="#workout/history">← All sessions</a><section class="session compact-session"><div class="session-heading"><div><p class="eyebrow">ROUTINE DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><div class="session-actions">${active.finished ? "" : `<button id="edit-session" class="secondary" aria-label="Edit this workout">Edit</button>`}<button id="close-session" class="secondary">Close</button></div></div>${active.finished ? '<p class="read-only-note">Completed · read-only snapshot</p>' : `<label class="date-control session-date"><span>${active.date>day()?"Planned date":"Workout date"}</span><input id="session-date" type="date" value="${active.date}" required></label>${active.date>day()?'<p>Planned only. Completion is available on the workout date; correct the date if needed.</p>':""}`}<div class="rest compact-rest"><b>Rest</b><input aria-label="Manual rest seconds" id="rest-seconds" inputmode="numeric" type="number" min="1" max="1800" value="90"><button id="timer-start">Start</button><button id="timer-stop" class="secondary">Stop</button><output id="clock" aria-live="off">Ready</output></div>${active.exercises
     .map((ex, i) => {
       const previous = sessions
         .filter(
@@ -218,21 +223,6 @@ function workout() {
       .forEach((el) => (el.disabled = true));
 }
 
-function nutrition() {
-  const daily = logs.filter((l) => l.date === selectedDate),
-    sum = totals(daily);
-  app.innerHTML =
-    heading("FOOD & FUEL", "Nutrition", "Your daily food journal.") +
-    `<label class="date-control"><span>Journal date</span><input id="food-date" type="date" value="${selectedDate}"></label><div class="metrics">${macros.map((k) => `<article><small>${k === "kcal" ? "CALORIES" : k.toUpperCase()}</small><strong>${Math.round(sum[k])}${k === "kcal" ? "" : "g"}</strong></article>`).join("")}</div><article><h2>Find a food</h2><form id="search"><label>International packaged foods or barcode<input name="query" required placeholder="Search paneer, yogurt… or scan code manually"></label><button>Search Open Food Facts</button></form><p class="muted">Online lookup. Community estimates; verify against the package. Homemade Indian dishes vary: build your household recipe below.</p><div id="results">${results.map((f, i) => `<div class="food-row"><span><b>${esc(f.name)}</b><small>${Math.round(f.kcal)} kcal / 100g · ${esc(f.source)}</small></span><button data-result="${i}">Save</button></div>`).join("")}</div><a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts</a> · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL data license</a></article><article><h2>Saved foods & recipes</h2><p>Saved foods work offline. Star your favorites; log the actual portion.</p>${
-      [...foods]
-        .sort((a, b) => Number(b.favorite) - Number(a.favorite))
-        .map(
-          (f) =>
-            `<form class="food-row log-food" data-id="${f.id}"><button type="button" class="secondary" data-favorite="${f.id}" aria-label="Favorite ${esc(f.name)}">${f.favorite ? "★" : "☆"}</button><span><b>${esc(f.name)}</b><small>${esc(f.source)}${f.conflictOf ? " · Alternative food version" : ""} · ${Math.round(f.kcal)} kcal/100g</small></span><label>grams<input name="grams" inputmode="decimal" type="number" min="1" value="${esc(f.serving || 100)}" required></label><button>Log</button></form>`,
-        )
-        .join("") || "<p>No saved foods yet. Add a label or recipe below.</p>"
-    }</article><article><h2>Today’s meals</h2>${daily.some((l) => l.conflictOf) ? '<p role="status">Unresolved alternatives are preserved below and excluded from totals. Keep the original, or remove it and log the preferred version once.</p>' : ""}${daily.map((l) => `<div class="food-row"><span>${esc(l.food.name)} · ${l.grams}g${l.conflictOf ? "<small>Alternative — excluded from totals</small>" : ""}<small>${Math.round((l.food.kcal * l.grams) / 100)} kcal</small></span><button class="secondary" data-delete-log="${l.id}">Remove</button></div>`).join("") || "<p>Your first meal starts here.</p>"}</article><article><h2>Add a custom food</h2><form id="custom"><label>Name<input name="name" required placeholder="e.g. household paneer or package label"></label><p>Nutrition per 100 grams</p><div class="fields">${macros.map((k) => num(k, k)).join("")}${num("serving", "Saved serving weight (g)", 100)}</div><label>Source<input name="source" value="User-entered estimate" required></label><button>Save food</button></form></article><article><h2>Your household recipe</h2><p>Add every ingredient, including oil or ghee. Use the final cooked batch weight to account for water gained or lost.</p><form id="ingredient"><label>Saved ingredient<select name="food">${foods.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join("")}</select></label>${num("grams", "Ingredient grams")}<button ${foods.length ? "" : "disabled"}>Add ingredient</button></form><ul>${ingredients.map((i) => `<li>${esc(i.food.name)} · ${i.grams}g</li>`).join("")}</ul><button id="clear-recipe" class="secondary">Clear ingredients</button><form id="recipe"><label>Recipe name<input name="name" required placeholder="Your dal, sabzi, khichdi…"></label>${num("yield", "Cooked batch weight (g)")}${num("serving", "Saved serving weight (g)", 150)}<button>Save recipe</button></form></article>`;
-}
 function captureWeightDraft() {
   const form = document.querySelector("#weight-entry[open] #weight-form");
   if (!form) return;
@@ -240,19 +230,20 @@ function captureWeightDraft() {
   weightDraft = { id:values.recordId, date:values.date, value:values.value === "" ? "" : Number(values.value), unit:values.unit, note:values.note };
 }
 function progress() {
-  app.innerHTML = renderProgress({sessions, weighIns, range:progressRange, unit:progressUnit, exerciseKey:progressExercise, exerciseMetric:progressMetric, draft:weightDraft, today:day(), esc});
+  app.innerHTML = renderProgress({sessions, weighIns, range:progressRange, unit:progressUnit, exerciseKey:progressExercise, exerciseMetric:progressMetric, view:routeFor(location.hash).section, draft:weightDraft, today:day(), esc});
 }
 function preferences() {
   app.innerHTML =
     heading(
       "MAKE IT YOURS",
       "You",
-      "Private on this browser. Back up regularly.",
+      "Preferences, private sync and backups.",
     ) +
-    `<article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", `Smallest load increase (${settings.unit})`, settings.increment)}<label>Diet preferences<textarea name="diet">${esc(settings.diet)}</textarea></label><h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<p><a href="#progress">Log body weight and view its history in Progress →</a></p><label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Automatic Pi sync</h2><p>Your journal syncs automatically while Lifty is open and connected to your private Pi through Tailscale. Offline changes stay on this device and retry when the connection returns. No app sign-in is needed. iOS does not guarantee sync while the app is closed.</p><button id="sync-now" class="secondary">Retry sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
+    `<a class="back-link" href="#today">← Back to Today</a><article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", `Smallest load increase (${settings.unit})`, settings.increment)}<h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<p><a href="#progress">Log body weight and view its history in Progress →</a></p><label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Automatic Pi sync</h2><p>Your journal syncs automatically while Lifty is open and connected to your private Pi through Tailscale. Offline changes stay on this device and retry when the connection returns. No app sign-in is needed. iOS does not guarantee sync while the app is closed.</p><button id="sync-now" class="secondary">Retry sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
 }
 app.addEventListener("input", async (e) => {
   const t = e.target;
+  if (t.form?.id === 'weight-form') captureWeightDraft();
   if (editing) {
     updateDraft(editing, t);
     return;
@@ -279,6 +270,7 @@ app.addEventListener("input", async (e) => {
   }
 });
 app.addEventListener("change", async (e) => {
+  if (e.target.form?.id === 'weight-form') captureWeightDraft();
   if (e.target.id === "workout-date") { if (validDate(e.target.value)) { workoutDate = e.target.value; workout(); } return; }
   if (e.target.id === "workout-routine") { workoutRoutine = Number(e.target.value); workout(); return; }
   if (e.target.id === "session-date") {
@@ -294,16 +286,13 @@ app.addEventListener("change", async (e) => {
     const form = e.target.form, value = form.elements.value;
     if (value.value !== "") value.value = Number(convertWeight(Number(value.value), form.dataset.unit, e.target.value).toFixed(3));
     form.dataset.unit = e.target.value;
+    captureWeightDraft();
     return;
   }
   if (editing) {
     updateDraft(editing, e.target);
     if (e.target.id === "editor-scope") render();
     return;
-  }
-  if (e.target.id === "food-date") {
-    selectedDate = e.target.value;
-    nutrition();
   }
   if (e.target.id === "import") {
     try {
@@ -384,17 +373,17 @@ app.addEventListener("click", async (e) => {
     }
     if (t.dataset.choose !== undefined) {
       workoutRoutine = Number(t.dataset.choose); active = null;
-      location.hash = "workout"; workout(); return;
+      location.hash = "workout/log"; workout(); return;
     }
     if (t.id === "workout-additional") { await startSelectedWorkout(true); return; }
     if (t.dataset.resume) {
       active = sessions.find((s) => s.id === t.dataset.resume);
-      location.hash = "workout";
+      location.hash = "workout/session/" + active.id;
       workout();
     }
     if (t.id === "close-session") {
       active = null;
-      workout();
+      location.hash="workout/log"; workout();
     }
     if (t.id === "finish") {
       if (active.finished) return;
@@ -402,7 +391,7 @@ app.addEventListener("click", async (e) => {
       active.finished = true;
       await save("sessions", active);
       active = null;
-      location.hash = "progress";
+      location.hash = "workout/history";
       render();
     }
     if (t.id === "timer-start") {
@@ -410,27 +399,6 @@ app.addEventListener("click", async (e) => {
       if (n > 0 && n <= 1800) timerEnd = Date.now() + n * 1000;
     }
     if (t.id === "timer-stop") timerEnd = 0;
-    if (t.dataset.result !== undefined) {
-      const f = { ...results[Number(t.dataset.result)], id: uid() };
-      foods.push(f);
-      await save("foods", f);
-      nutrition();
-    }
-    if (t.dataset.favorite) {
-      const f = foods.find((f) => f.id === t.dataset.favorite);
-      f.favorite = !f.favorite;
-      await save("foods", f);
-      nutrition();
-    }
-    if (t.dataset.deleteLog) {
-      await remove("logs", t.dataset.deleteLog);
-      logs = logs.filter((l) => l.id !== t.dataset.deleteLog);
-      nutrition();
-    }
-    if (t.id === "clear-recipe") {
-      ingredients = [];
-      nutrition();
-    }
     if (t.id === "persist")
       toast(
         (await navigator.storage?.persist())
@@ -445,8 +413,8 @@ app.addEventListener("click", async (e) => {
             {
               version: 1,
               sessions,
-              foods,
-              logs,
+              foods: await readAll("foods", true),
+              logs: await readAll("logs", true),
               settings,
               templates: templateRecords,
               weighIns: (await readAll("settings", true)).filter(r => r.type === "weighin"),
@@ -480,76 +448,11 @@ app.addEventListener("submit", async (e) => {
       await save("settings", record);
       weightDraft = null; await load(); progress(); toast("Body weight saved"); return;
     }
-    if (form.id === "search") {
-      form.querySelector("button").disabled = true;
-      toast("Searching online…");
-      const response = await fetch(
-        "/api/foods?q=" + encodeURIComponent(d.query),
-        { signal: AbortSignal.timeout(15000) },
-      );
-      if (!response.ok)
-        throw Error(
-          "Food lookup unavailable. Use saved foods or add a custom food.",
-        );
-      results = await response.json();
-      nutrition();
-      if (!results.length)
-        toast(
-          "No complete nutrition records found. Try a package label or custom food.",
-        );
-    }
-    if (form.id === "custom") {
-      const f = {
-        id: uid(),
-        name: d.name,
-        source: d.source,
-        serving: Number(d.serving),
-        ...Object.fromEntries(macros.map((k) => [k, Number(d[k])])),
-      };
-      foods.push(f);
-      await save("foods", f);
-      nutrition();
-    }
-    if (form.classList.contains("log-food")) {
-      const food = foods.find((f) => f.id === form.dataset.id),
-        l = {
-          id: uid(),
-          date: selectedDate,
-          food: structuredClone(food),
-          grams: Number(d.grams),
-        };
-      logs.push(l);
-      await save("logs", l);
-      nutrition();
-    }
-    if (form.id === "ingredient") {
-      ingredients.push({
-        food: structuredClone(foods.find((f) => f.id === d.food)),
-        grams: Number(d.grams),
-      });
-      nutrition();
-    }
-    if (form.id === "recipe") {
-      const f = {
-        id: uid(),
-        name: d.name,
-        source: "Household recipe estimate",
-        ingredients: structuredClone(ingredients),
-        yield: Number(d.yield),
-        serving: Number(d.serving),
-        ...recipe(ingredients, Number(d.yield)),
-      };
-      foods.push(f);
-      await save("foods", f);
-      ingredients = [];
-      nutrition();
-    }
     if (form.id === "preferences") {
       settings = {
         ...settings,
         unit: d.unit,
         increment: convertWeight(Number(d.increment), settings.unit, d.unit),
-        diet: d.diet,
         measurements: d.measurements,
         schedule: Array.from({ length: 7 }, (_, i) => Number(d["day" + i])),
       };
@@ -558,7 +461,6 @@ app.addEventListener("submit", async (e) => {
     }
   } catch (err) {
     toast(err.message);
-    if (form.id === "search") form.querySelector("button").disabled = false;
   }
 });
 setInterval(() => {
@@ -588,7 +490,14 @@ async function load() {
       structuredClone(def),
   );
 }
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => {
+  render(); window.scrollTo(0,0);
+  const title = app.querySelector("h1, .session-heading h2");
+  if (title) { title.tabIndex = -1; title.focus({preventScroll:true}); }
+  app.classList.remove('section-enter');
+  requestAnimationFrame(()=>app.classList.add('section-enter'));
+  setTimeout(()=>app.classList.remove('section-enter'),180);
+});
 window.addEventListener("storage", () =>
   toast("Another window changed data. Reload before editing."),
 );

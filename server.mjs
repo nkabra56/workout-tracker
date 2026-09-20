@@ -13,6 +13,7 @@ const root = fileURLToPath(new URL("./", import.meta.url));
 const allowed = new Set([
   "index.html",
   "app.js",
+  "navigation.js",
   "progress.js",
   "automatic-sync.js",
   "editor.js",
@@ -35,7 +36,6 @@ const types = {
   webmanifest: "application/manifest+json",
 };
 const authConfig = serveAuthConfig(process.env);
-let lastSearch = 0;
 let authFailures = 0,
   authWindow = Date.now();
 http
@@ -143,50 +143,6 @@ http
       }
       if (req.method !== "GET") {
         res.writeHead(405).end();
-        return;
-      }
-      if (url.pathname === "/api/foods") {
-        if (Date.now() - lastSearch < 6500) {
-          res.writeHead(429).end("Wait a few seconds between searches");
-          return;
-        }
-        lastSearch = Date.now();
-        const q = (url.searchParams.get("q") || "").trim().slice(0, 150);
-        const barcode = /^\d{8,14}$/.test(q);
-        const fields = "code,product_name,nutriments";
-        const endpoint = barcode
-          ? `https://world.openfoodfacts.org/api/v2/product/${q}?fields=${fields}`
-          : `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=20&fields=${fields}`;
-        const r = await fetch(endpoint, {
-          headers: { "User-Agent": "Lifty/1.0 (private nutrition journal)" },
-          signal: AbortSignal.timeout(12000),
-        });
-        if (!r.ok) throw Error("upstream");
-        const data = await r.json();
-        const out = (barcode ? [data.product] : data.products || [])
-          .filter(Boolean)
-          .filter(
-            (p) =>
-              p.product_name &&
-              [
-                "energy-kcal_100g",
-                "proteins_100g",
-                "carbohydrates_100g",
-                "fat_100g",
-              ].every((k) => Number.isFinite(p.nutriments?.[k])),
-          )
-          .map((p) => ({
-            name: p.product_name,
-            kcal: p.nutriments["energy-kcal_100g"],
-            protein: p.nutriments.proteins_100g,
-            carbs: p.nutriments.carbohydrates_100g,
-            fat: p.nutriments.fat_100g,
-            source: "Open Food Facts · community estimate",
-            code: p.code,
-          }));
-        res.setHeader("Cache-Control", "no-store");
-        res.setHeader("Content-Type", "application/json");
-        res.end(JSON.stringify(out));
         return;
       }
       const file = url.pathname === "/" ? "index.html" : url.pathname.slice(1);

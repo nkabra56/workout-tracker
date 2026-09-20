@@ -1,9 +1,10 @@
-const CACHE = "steadily-v15";
+const CACHE = "steadily-v17";
 const ASSETS = [
   "/",
   "/index.html",
   "/style.css",
   "/app.js",
+  "/navigation.js",
   "/progress.js",
   "/automatic-sync.js",
   "/editor.js",

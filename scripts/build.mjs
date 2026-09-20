@@ -3,6 +3,7 @@ await mkdir("dist", { recursive: true });
 for (const file of [
   "index.html",
   "app.js",
+  "navigation.js",
   "progress.js",
   "automatic-sync.js",
   "editor.js",
@@ -18,5 +19,5 @@ for (const file of [
 ])
   await copyFile(file, "dist/" + file);
 console.log(
-  "Static offline shell built in dist/. Run server.mjs for online food lookup.",
+  "Static offline shell built in dist/. Run server.mjs for private sync.",
 );

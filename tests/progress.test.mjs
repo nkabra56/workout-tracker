@@ -70,3 +70,12 @@ test('exercise chart metrics use actual sessions, skip incomplete volume and ret
  assert.equal(exerciseSeries(group,'volume').unit,'lb·reps');
  assert.equal(exerciseSeries(undefined).points.length,0);
 });
+
+test('workout-only updates preserve historical nutrition records in the compatibility schema',()=>{
+ const food={id:'legacy-food',name:'Historical food',source:'Old label',kcal:100,protein:5,carbs:10,fat:3};
+ const log={id:'legacy-log',food,grams:100,date:'2026-09-01'};
+ const old=reconcile({},[{store:'foods',record:food},{store:'logs',record:log}]);
+ const next=reconcile(old,[{store:'settings',record:w('new-weight','2026-09-20',180)}]);
+ assert.deepEqual(next['foods:legacy-food'],old['foods:legacy-food']);
+ assert.deepEqual(next['logs:legacy-log'],old['logs:legacy-log']);
+});

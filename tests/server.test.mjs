@@ -27,6 +27,7 @@ test("HTTP service protects records, enforces origin and persists authenticated 
     });
     const base = "http://127.0.0.1:5179";
     assert.equal((await fetch(base + "/.env")).status, 404);
+    assert.equal((await fetch(base + "/api/foods?q=test")).status, 404);
     assert.equal((await fetch(base + "/api/sync")).status, 401);
     assert.equal(
       (
