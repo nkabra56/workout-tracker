@@ -1,6 +1,7 @@
 import {
   templates,
   newSession,
+  convertWeight,
   day,
   uid,
   macros,
@@ -49,8 +50,8 @@ let sessions = [],
   logs = [],
   settings = {
     id: "preferences",
-    unit: "kg",
-    increment: 1,
+    unit: "lb",
+    increment: 2.5,
     schedule: [0, 1, 2, 3, -1, 4, -1],
     diet: "Vegetarian; dairy and eggs optional",
   },
@@ -130,7 +131,7 @@ function workout() {
         )
         .sort((a, b) => b.date.localeCompare(a.date))
         .find((s) => s.exercises[i]?.equipment === ex.equipment);
-      return `<article class="exercise"><div class="section-title"><h3><span class="ordinal">${String(i + 1).padStart(2, "0")}</span>${ex.name}</h3><span class="tag">${ex.min}–${ex.max} reps${ex.each ? " / arm" : ""}</span></div><p>${ex.rest[0] === ex.rest[1] ? ex.rest[0] : ex.rest.join("–")} sec rest${ex.each ? " after both arms" : ""} · ${active.template === 2 ? "~3" : "2–3"} RIR</p><details class="equipment"><summary>Equipment & load increment</summary><label>Equipment / stack label<input data-equipment="${i}" value="${esc(ex.equipment)}" placeholder="e.g. gym A, cable 1"></label><label>Smallest load increase (${active.unit})<input inputmode="decimal" type="number" min="0.01" step="any" data-increment="${i}" value="${esc(ex.increment || settings.increment)}"></label></details><div class="set-head"><span>Set</span><span>${active.unit}</span><span>Reps</span><span>RIR</span><span>Done</span></div>${ex.sets.map((s, j) => `<div class="set-row"><b>${j + 1}</b>${["weight", "reps", "rir"].map((k) => `<input aria-label="${esc(ex.name)} set ${j + 1} ${k}" inputmode="decimal" type="number" min="0" ${k === "rir" ? 'max="10"' : ""} step="${k === "weight" ? "0.25" : "1"}" data-set="${i},${j},${k}" value="${esc(s[k])}">`).join("")}<input aria-label="Complete ${esc(ex.name)} set ${j + 1}" type="checkbox" data-set="${i},${j},done" ${s.done ? "checked" : ""}></div><small class="last">Last: ${previous ? esc(`${previous.exercises[i].sets[j].weight || "—"} ${active.unit} × ${previous.exercises[i].sets[j].reps || "—"} · RIR ${previous.exercises[i].sets[j].rir || "—"}`) : "No matching session yet"}</small>`).join("")}</article>`;
+      return `<article class="exercise"><div class="section-title"><h3><span class="ordinal">${String(i + 1).padStart(2, "0")}</span>${ex.name}</h3><span class="tag">${ex.min}–${ex.max} reps${ex.each ? " / arm" : ""}</span></div><p>${ex.rest[0] === ex.rest[1] ? ex.rest[0] : ex.rest.join("–")} sec rest${ex.each ? " after both arms" : ""} · ${active.template === 2 ? "~3" : "2–3"} RIR</p><details class="equipment"><summary>Equipment & load increment</summary><label>Equipment / stack label<input data-equipment="${i}" value="${esc(ex.equipment)}" placeholder="e.g. gym A, cable 1"></label><label>Smallest load increase (${active.unit})<input inputmode="decimal" type="number" min="0.01" step="any" data-increment="${i}" value="${esc(ex.increment || convertWeight(settings.increment, settings.unit, active.unit))}"></label></details><div class="set-head"><span>Set</span><span>${active.unit}</span><span>Reps</span><span>RIR</span><span>Done</span></div>${ex.sets.map((s, j) => `<div class="set-row"><b>${j + 1}</b>${["weight", "reps", "rir"].map((k) => `<input aria-label="${esc(ex.name)} set ${j + 1} ${k}" inputmode="decimal" type="number" min="0" ${k === "rir" ? 'max="10"' : ""} step="${k === "weight" ? "0.25" : "1"}" data-set="${i},${j},${k}" value="${esc(s[k])}">`).join("")}<input aria-label="Complete ${esc(ex.name)} set ${j + 1}" type="checkbox" data-set="${i},${j},done" ${s.done ? "checked" : ""}></div><small class="last">Last: ${previous ? esc(`${previous.exercises[i].sets[j].weight || "—"} ${active.unit} × ${previous.exercises[i].sets[j].reps || "—"} · RIR ${previous.exercises[i].sets[j].rir || "—"}`) : "No matching session yet"}</small>`).join("")}</article>`;
     })
     .join(
       "",
@@ -174,7 +175,7 @@ function progress() {
                   .map((s) => {
                     const ex = s.exercises[ei],
                       sets = ex.sets.filter((x) => x.done);
-                    return `<p>${esc(s.date)} · ${esc(ex.equipment || "Unlabeled equipment")} · ${sets.map((x) => `${x.weight || 0} × ${x.reps || 0}`).join(", ")} ${s.unit}<br>Volume ${Math.round(sets.reduce((n, x) => n + Number(x.weight) * Number(x.reps), 0))} ${s.unit}·reps<br>${suggestion(ex, ti === 2 ? 3 : 2, ex.increment || settings.increment, s.technique)}</p>`;
+                    return `<p>${esc(s.date)} · ${esc(ex.equipment || "Unlabeled equipment")} · ${sets.map((x) => `${x.weight || 0} × ${x.reps || 0}`).join(", ")} ${s.unit}<br>Volume ${Math.round(sets.reduce((n, x) => n + Number(x.weight) * Number(x.reps), 0))} ${s.unit}·reps<br>${suggestion(ex, ti === 2 ? 3 : 2, ex.increment || convertWeight(settings.increment, settings.unit, s.unit), s.technique)}</p>`;
                   })
                   .join("")}</details>`
               : "";
@@ -198,7 +199,7 @@ function preferences() {
       "You",
       "Private on this browser. Back up regularly.",
     ) +
-    `<article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", "Smallest load increase", settings.increment)}<label>Diet preferences<textarea name="diet">${esc(settings.diet)}</textarea></label><h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Private Pi sync</h2><p>Unlock with the private access key configured on your Pi. Unlock once per month on this device. Your key is exchanged for a private, browser-protected session. Sync retries while the app is open and connected; iOS does not guarantee background sync.</p><form id="sync-login"><label>Private access key<input name="token" type="password" autocomplete="current-password" minlength="32" required></label><button>Unlock & sync</button></form><button id="sync-now" class="secondary">Sync now</button> <button id="sync-lock" class="secondary">Lock sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
+    `<article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", `Smallest load increase (${settings.unit})`, settings.increment)}<label>Diet preferences<textarea name="diet">${esc(settings.diet)}</textarea></label><h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<label>Body weight (${settings.bodyWeightUnit || settings.unit}, optional)<input name="bodyWeight" inputmode="decimal" type="number" min="0" step="any" value="${esc(settings.bodyWeight ?? "")}"></label><label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Private Pi sync</h2><p>Unlock with the private access key configured on your Pi. Unlock once per month on this device. Your key is exchanged for a private, browser-protected session. Sync retries while the app is open and connected; iOS does not guarantee background sync.</p><form id="sync-login"><label>Private access key<input name="token" type="password" autocomplete="current-password" minlength="32" required></label><button>Unlock & sync</button></form><button id="sync-now" class="secondary">Sync now</button> <button id="sync-lock" class="secondary">Lock sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
 }
 app.addEventListener("input", async (e) => {
   const t = e.target;
@@ -275,7 +276,7 @@ app.addEventListener("click", async (e) => {
       active =
         sessions.find(
           (s) => !s.finished && s.template === Number(t.dataset.start),
-        ) || newSession(Number(t.dataset.start), settings.unit);
+        ) || newSession(Number(t.dataset.start), settings.unit, settings.increment);
       if (!sessions.includes(active)) sessions.push(active);
       await save("sessions", active);
       workout();
@@ -429,7 +430,9 @@ app.addEventListener("submit", async (e) => {
       settings = {
         ...settings,
         unit: d.unit,
-        increment: Number(d.increment),
+        increment: convertWeight(Number(d.increment), settings.unit, d.unit),
+        bodyWeight: d.bodyWeight === "" ? "" : convertWeight(Number(d.bodyWeight), settings.bodyWeightUnit || settings.unit, d.unit),
+        bodyWeightUnit: d.unit,
         diet: d.diet,
         measurements: d.measurements,
         schedule: Array.from({ length: 7 }, (_, i) => Number(d["day" + i])),

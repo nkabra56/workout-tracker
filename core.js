@@ -60,7 +60,7 @@ export const templates = [
   },
 ];
 export const day = () => new Date().toLocaleDateString("en-CA");
-export function newSession(template, unit) {
+export function newSession(template, unit = "lb", increment = unit === "lb" ? 2.5 : 1) {
   return {
     id: uid(),
     date: day(),
@@ -73,6 +73,7 @@ export function newSession(template, unit) {
     exercises: templates[template].exercises.map((x) => ({
       ...x,
       equipment: "",
+      increment,
       sets: Array.from({ length: x.sets }, () => ({
         weight: "",
         reps: "",
@@ -197,3 +198,5 @@ export function validateRecord(store, r) {
   if (!valid) throw Error("Invalid " + store + " record");
   return true;
 }
+
+export function convertWeight(value,from,to){if(!['lb','kg'].includes(from)||!['lb','kg'].includes(to)||!Number.isFinite(Number(value)))throw Error('Invalid weight conversion');if(from===to)return Number(value);return from==='lb'?Number(value)*0.45359237:Number(value)/0.45359237;}
