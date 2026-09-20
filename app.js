@@ -54,7 +54,7 @@ const app = document.querySelector("#app"),
     );
 let syncBusy = false;
 let workoutDate = day(), workoutRoutine = 0;
-let weighIns = [], progressRange = 90, progressUnit = "lb", progressExercise = "", weightDraft = null;
+let weighIns = [], progressRange = 90, progressUnit = "lb", progressExercise = "", progressMetric = "load", weightDraft = null;
 
 let definitions = structuredClone(templates),
   templateRecords = [],
@@ -240,7 +240,7 @@ function captureWeightDraft() {
   weightDraft = { id:values.recordId, date:values.date, value:values.value === "" ? "" : Number(values.value), unit:values.unit, note:values.note };
 }
 function progress() {
-  app.innerHTML = renderProgress({sessions, weighIns, range:progressRange, unit:progressUnit, exerciseKey:progressExercise, draft:weightDraft, today:day(), esc});
+  app.innerHTML = renderProgress({sessions, weighIns, range:progressRange, unit:progressUnit, exerciseKey:progressExercise, exerciseMetric:progressMetric, draft:weightDraft, today:day(), esc});
 }
 function preferences() {
   app.innerHTML =
@@ -285,9 +285,10 @@ app.addEventListener("change", async (e) => {
     if (!active || active.finished || !validDate(e.target.value)) return;
     active.date = e.target.value; await save("sessions", active); workout(); return;
   }
-  if (["progress-range", "progress-unit", "progress-exercise"].includes(e.target.id)) captureWeightDraft();
+  if (["progress-range", "progress-unit", "progress-exercise", "progress-metric"].includes(e.target.id)) captureWeightDraft();
   if (e.target.id === "progress-range") { progressRange = Number(e.target.value); progress(); return; }
   if (e.target.id === "progress-unit") { progressUnit = e.target.value; progress(); return; }
+  if (e.target.id === "progress-metric") { progressMetric = e.target.value; progress(); return; }
   if (e.target.id === "progress-exercise") { progressExercise = e.target.value; progress(); return; }
   if (e.target.id === "weight-entry-unit") {
     const form = e.target.form, value = form.elements.value;

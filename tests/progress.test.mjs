@@ -54,3 +54,19 @@ test('arbitrary calendar date and Day5 routine survive serialization, resume by 
  assert.equal(inRange('2026-09-21',0,'2026-09-20'),false);
  assert.throws(()=>newSession(4,'lb',2.5,undefined,'2026-02-30'));
 });
+
+test('exercise chart metrics use actual sessions, skip incomplete volume and retain explicit zero load',async()=>{
+ const {exerciseSeries}=await import('../progress.js');
+ const make=(date,sets)=>{const session=newSession(4,'lb',2.5,undefined,date);session.finished=true;session.exercises[0].sets=sets;return session;};
+ const a=make('2026-09-08',[{done:true,weight:40,reps:10},{done:true,weight:40,reps:8}]);
+ const b=make('2026-09-15',[{done:true,weight:45,reps:8},{done:true,weight:'',reps:8}]);
+ const zero=make('2026-09-18',[{done:true,weight:0,reps:10}]);
+ const future=make('2026-09-25',[{done:true,weight:60,reps:10}]);
+ const group=exerciseGroups([a,b,zero,future,{...a,id:'alt',conflictOf:a.id}],0,'2026-09-20')[0];
+ assert.deepEqual(exerciseSeries(group,'load').points.map(p=>[p.date,p.value]),[['2026-09-08',40],['2026-09-15',45],['2026-09-18',0]]);
+ assert.deepEqual(exerciseSeries(group,'reps').points.map(p=>p.value),[10,8,10]);
+ assert.deepEqual(exerciseSeries(group,'volume').points.map(p=>p.value),[720,0]);
+ assert.equal(exerciseSeries(group,'volume').missing,1);
+ assert.equal(exerciseSeries(group,'volume').unit,'lb·reps');
+ assert.equal(exerciseSeries(undefined).points.length,0);
+});

@@ -1118,3 +1118,6 @@ nav {
 input[type=date]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
 .session-date { margin: 10px 0 16px; }
 .session-date > span { font-size: 11px; }
+.chart-connection { fill: none; stroke: var(--blue); stroke-width: 1.5; opacity: .55; }
+.chart-title { margin-top: 22px; font-size: 16px; }
+.chart-title small { color: var(--muted); font-weight: 400; font-size: 12px; }

@@ -86,3 +86,9 @@ Open **Train → Workout date → Routine → Start workout**. Every Day1–5 ro
 The selected date is saved literally as the local calendar date. Existing sessions are matched by that date and routine: resume an unfinished one, view a completed snapshot, or explicitly confirm a separate session. If several are unfinished, choose one rather than silently resuming the wrong record. Reloaded unfinished sessions remain in the chooser's unfinished/planned list. An unfinished session's date can be corrected; completed snapshots stay read-only.
 
 Future dates create clearly labeled planned sessions. They cannot be completed before their workout date and are excluded from completed progress. Choose the real earlier date to log past training. Progress and weekly completion use that recorded date rather than the optional schedule or time of data entry.
+
+### Exercise charts and app icon
+
+In **Progress → Exercise charts**, select the comparable exercise and choose **Chart metric → Load, Reps or Volume**. Load is the heaviest fully recorded completed set; Reps is that set's repetitions, with its load available in Chart values. Volume sums weight×reps and plots only sessions with every completed set fully recorded, so missing data cannot create a false dip. Session dates drive the horizontal axis. Dots are observations; connecting lines do not claim measurements between sessions. A single point is a baseline, not a trend. Chart values provides exact dates, values and units in readable text. The body-weight chart remains directly under Progress → Body weight; log dated measurements to populate it.
+
+The original simple blue dumbbell SVG is also rasterized into 192px, 512px and 180px Apple icons. Existing iOS Home Screen icons may stay cached even after app content refreshes; do not clear browser/app data to refresh an icon.
