@@ -65,10 +65,12 @@ export function newSession(
   unit = "lb",
   increment = unit === "lb" ? 2.5 : 1,
   definition = templates[template],
+  date = day(),
 ) {
+  if (!validDate(date)) throw Error("Choose a valid workout date");
   return {
     id: uid(),
-    date: day(),
+    date,
     createdAt: new Date().toISOString(),
     title: definition.name,
     template,
@@ -177,6 +179,10 @@ export function validateRecord(store, r) {
   if (store === "settings" && r.type === "template")
     valid =
       Number.isInteger(r.day) && r.day >= 0 && r.day < 5 && validDefinition(r);
+  if (store === "settings" && r.type === "weighin")
+    valid = finite(r.value, 2000) && r.value > 0 && ["lb", "kg"].includes(r.unit) && text(r.note, 500) &&
+      ((r.date === null && r.legacy === true) ||
+       (typeof r.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date) && Number.isFinite(Date.parse(r.date + "T00:00:00Z")) && new Date(r.date + "T00:00:00Z").toISOString().slice(0,10) === r.date));
   if (store === "sessions")
     valid =
       Number.isInteger(r.template) &&
@@ -302,4 +308,11 @@ export function editSession(session, definition) {
     };
   });
   return next;
+}
+
+export function validDate(date) {
+  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(Date.parse(date + "T00:00:00Z")) && new Date(date + "T00:00:00Z").toISOString().slice(0,10) === date;
+}
+export function sessionsOnDate(sessions, date, template) {
+  return sessions.filter(s => !s._deleted && !s.conflictOf && s.date === date && s.template === template);
 }

@@ -13,6 +13,7 @@ const root = fileURLToPath(new URL("./", import.meta.url));
 const allowed = new Set([
   "index.html",
   "app.js",
+  "progress.js",
   "automatic-sync.js",
   "editor.js",
   "core.js",

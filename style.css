@@ -1076,3 +1076,45 @@ nav {
 .previous-data summary {
   min-height: 44px;
 }
+/* Progress and explicit workout-date selection retain compact phone controls. */
+.progress-card { margin: 0 0 18px; }
+.progress-filter { font-size: 10px; margin: 0; max-width: 115px; }
+.progress-filter select { margin-top: 5px; padding: 9px 10px; min-height: 44px; }
+.weight-summary { display: grid; gap: 6px; margin: 18px 0; }
+.weight-summary strong { font-size: 34px; line-height: 1.15; letter-spacing: -1px; }
+.weight-summary strong small { font-size: 17px; color: var(--muted); letter-spacing: 0; }
+.weight-summary > span, .progress-caption, .chart-legend { font-size: 11px; color: var(--muted); line-height: 1.55; }
+.weight-log-action { display: block; padding: 13px 14px; border-radius: 12px; background: var(--blue); color: #071326; font-weight: 650; text-align: center; }
+.weight-log-action::-webkit-details-marker { display: none; }
+#weight-entry { border: 0; padding: 0; }
+#weight-form { padding-top: 15px; }
+.weight-fields { display: grid; grid-template-columns: minmax(0,1fr) 80px; gap: 10px; }
+.weight-fields label:first-child { grid-column: 1 / -1; }
+.weight-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.weight-actions button { font-size: 12px; padding: 10px 12px; }
+.weight-history { display: grid; gap: 10px; border-bottom: 1px solid var(--line); padding: 14px 0; }
+.weight-history small { display: block; font-size: 11px; color: var(--muted); margin-top: 6px; }
+.weight-history p { font-size: 12px; overflow-wrap: anywhere; }
+.progress-chart { width: 100%; height: auto; display: block; margin-top: 20px; }
+.progress-chart text { fill: var(--muted); font-size: 10px; }
+.chart-grid { stroke: var(--line); stroke-width: 1; }
+.chart-point { fill: var(--blue); }
+.chart-average { fill: none; stroke: #bcdbff; stroke-width: 2; }
+.weekly-chart { display: grid; gap: 12px; margin: 18px 0; }
+.weekly-chart > div { display: grid; grid-template-columns: 48px minmax(0,1fr) 20px; align-items: center; gap: 12px; font-size: 11px; }
+.weekly-chart meter { grid-column: 2; grid-row: 1; width: 100%; height: 10px; appearance: none; -webkit-appearance: none; background: var(--raised); border: none; border-radius: 4px; }
+.weekly-chart span { grid-column: 1; grid-row: 1; color: var(--muted); }
+.weekly-chart meter::-webkit-meter-bar { background: var(--raised); border: none; }
+.weekly-chart meter::-webkit-meter-optimum-value { background: var(--blue); }
+.weekly-chart meter::-moz-meter-bar { background: var(--blue); }
+.progress-card .metrics strong { display: block; font-size: 26px; }
+.progress-card .metrics small { display: block; margin-top: 5px; }
+.workout-picker h2 { font-size: 22px; }
+.workout-picker p { font-size: 12px; }
+.existing-workouts { margin-top: 18px; }
+.existing-workouts h3 { font-size: 13px; }
+#workout-date, #session-date, #weight-form input[type=date] { width: 168px; max-width: 100%; min-width: 0; height: 46px; padding: 10px; appearance: none; -webkit-appearance: none; }
+#workout-date, #session-date { flex: 0 1 168px; max-width: 60%; }
+input[type=date]::-webkit-date-and-time-value { min-width: 0; text-align: left; }
+.session-date { margin: 10px 0 16px; }
+.session-date > span { font-size: 11px; }

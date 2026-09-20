@@ -11,7 +11,7 @@ source_dir="$(cd "$(dirname "$0")/.." && pwd)"
 id steadily >/dev/null 2>&1 || useradd --system --home /var/lib/steadily --shell /usr/sbin/nologin steadily
 install -d -m 0755 /opt/steadily
 install -d -o steadily -g steadily -m 0700 /var/lib/steadily
-for file in index.html app.js automatic-sync.js editor.js core.js storage.js style.css sw.js icon.svg icon-192.png icon-512.png apple-touch-icon.png manifest.webmanifest server.mjs sync-server.mjs serve-auth.mjs; do install -m 0644 "$source_dir/$file" /opt/steadily/; done
+for file in index.html app.js progress.js automatic-sync.js editor.js core.js storage.js style.css sw.js icon.svg icon-192.png icon-512.png apple-touch-icon.png manifest.webmanifest server.mjs sync-server.mjs serve-auth.mjs; do install -m 0644 "$source_dir/$file" /opt/steadily/; done
 if [ ! -e /etc/steadily.env ]; then
  : "${TAILSCALE_ALLOWED_LOGINS:?Set the explicit owner Tailscale login allowlist}"
  umask 077
