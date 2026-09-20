@@ -132,11 +132,13 @@ export function totals(logs) {
     ]),
   );
 }
-export function mergeRecords(existing, incoming) {
+export function mergeRecords(existing, incoming, deletionWins = false) {
   const result = new Map(existing.map((x) => [x.id, x]));
   for (const r of incoming) {
     if (!r.id) throw Error("Invalid record");
     const old = result.get(r.id);
+    if (deletionWins && old?._deleted) continue;
+    if (deletionWins && r._deleted) { result.set(r.id, {...(old || r), _deleted:true}); continue; }
     if (!old) result.set(r.id, r);
     else if (JSON.stringify(old) !== JSON.stringify(r)) {
       const conflictId = r.id + "-conflict-" + hash(JSON.stringify(r));
@@ -315,4 +317,33 @@ export function validDate(date) {
 }
 export function sessionsOnDate(sessions, date, template) {
   return sessions.filter(s => !s._deleted && !s.conflictOf && s.date === date && s.template === template);
+}
+
+// Corrections work on a detached copy, never a future routine definition.
+export function sessionCorrection(session) {
+  if (!session || session._deleted) throw Error("This session was deleted.");
+  return structuredClone(session);
+}
+export function saveSessionCorrection(original, draft, today = day()) {
+  if (!original || original._deleted || draft.id !== original.id)
+    throw Error("This session is no longer available.");
+  if (!validDate(draft.date)) throw Error("Choose a valid workout date.");
+  if (draft.finished && draft.date > today)
+    throw Error("A future workout cannot be completed. Change its date or mark it in progress.");
+  const next = structuredClone(original);
+  for (const key of ["date", "notes", "cardio", "technique", "finished"]) next[key] = draft[key];
+  if (typeof next.finished !== "boolean" || typeof next.technique !== "boolean" ||
+      (next.cardio !== "" && (!Number.isFinite(Number(next.cardio)) || Number(next.cardio) < 0 || Number(next.cardio) > 1e6)))
+    throw Error("Check session completion and cardio values.");
+  if (draft.exercises.length !== next.exercises.length) throw Error("Session exercises changed; reopen the editor.");
+  next.exercises.forEach((ex, i) => {
+    const edited = draft.exercises[i];
+    if (exerciseIdentity(ex) !== exerciseIdentity(edited) || ex.sets.length !== edited.sets.length)
+      throw Error("Session exercises changed; reopen the editor.");
+    ex.sets = structuredClone(edited.sets);
+    ex.equipment = edited.equipment;
+    ex.increment = edited.increment;
+  });
+  validateRecord("sessions", next);
+  return next;
 }

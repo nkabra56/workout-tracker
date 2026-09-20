@@ -2,6 +2,8 @@ import { routeFor, sectionLinks } from "./navigation.js";
 import { renderProgress, legacyWeighIn } from "./progress.js";
 import { startAutomaticSync } from "./automatic-sync.js";
 import {
+  sessionCorrection,
+  saveSessionCorrection,
   templates,
   newSession,
   validDate,
@@ -52,6 +54,7 @@ const app = document.querySelector("#app"),
         })[c],
     );
 let syncBusy = false;
+let correction = null;
 let workoutDate = day(), workoutRoutine = 0;
 let weighIns = [], progressRange = 90, progressUnit = "lb", progressExercise = "", progressMetric = "load", weightDraft = null;
 
@@ -76,6 +79,7 @@ const toast = (s) => {
   setTimeout(() => (document.querySelector("#toast").textContent = ""), 5000);
 };
 async function save(store, r) {
+  if (store === "sessions" && correction && r === correction.draft) return;
   validateRecord(store, r);
   document.querySelector("#status").textContent = "Saving…";
   try {
@@ -102,7 +106,7 @@ function render() {
     return;
   }
   const route = currentRoute.area;
-  if (route === "workout") active = currentRoute.section === "session" ? sessions.find(s=>s.id===currentRoute.id) : null;
+  if (route === "workout") active = currentRoute.section === "session" ? (correction?.draft.id === currentRoute.id ? correction.draft : sessions.find(s=>s.id===currentRoute.id)) : null;
   document
     .querySelectorAll("nav a")
     .forEach((a) => {
@@ -172,7 +176,7 @@ function workoutRoutines() {
 }
 function workoutHistory() {
   const records = [...sessions].filter(s=>!s._deleted).sort((a,b)=>b.date.localeCompare(a.date));
-  return `<h2>Session history</h2><p>Every recorded workout, on its actual date.</p>${records.map((r,i)=>`<button class="history secondary" data-resume="${r.id}"><strong>${esc(r.title||definitions[r.template].name)}</strong><span>${r.date} · ${r.conflictOf?'Alternative · excluded from totals':r.finished?'Completed':r.date>day()?'Planned':'In progress'}${r.createdAt?' · '+esc(new Date(r.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):''}</span></button>`).join('')||'<p>No sessions yet. Choose a date and routine to begin.</p>'}<a class="section-card" href="#progress/exercises"><strong>Exercise progress</strong><span>Compare recorded loads, reps and volume →</span></a>`;
+  return `<h2>Session history</h2><p>Every recorded workout, on its actual date.</p>${records.map((r,i)=>`<div class="history-item"><button class="history secondary" data-resume="${r.id}"><strong>${esc(r.title||definitions[r.template].name)}</strong><span>${r.date} · ${r.conflictOf?'Alternative · excluded from totals':r.finished?'Completed':r.date>day()?'Planned':'In progress'}${r.createdAt?' · '+esc(new Date(r.createdAt).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})):''}</span></button><div class="history-actions"><button class="secondary" data-session-edit="${r.id}" aria-label="Edit ${esc(r.title||definitions[r.template].name)} on ${r.date}">Edit</button><button class="danger secondary" data-session-delete="${r.id}" aria-label="Delete ${esc(r.title||definitions[r.template].name)} on ${r.date}">Delete</button></div></div>`).join('')||'<p>No sessions yet. Choose a date and routine to begin.</p>'}<a class="section-card" href="#progress/exercises"><strong>Exercise progress</strong><span>Compare recorded loads, reps and volume →</span></a>`;
 }
 async function startSelectedWorkout(separate = false) {
   if (!validDate(workoutDate)) throw Error("Choose a valid workout date");
@@ -193,14 +197,14 @@ function workout() {
       (view==='routines'?workoutRoutines():view==='history'?workoutHistory():workoutChooser());
     return;
   }
-  app.innerHTML = `<a class="back-link" href="#workout/history">← All sessions</a><section class="session compact-session"><div class="session-heading"><div><p class="eyebrow">ROUTINE DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><div class="session-actions">${active.finished ? "" : `<button id="edit-session" class="secondary" aria-label="Edit this workout">Edit</button>`}<button id="close-session" class="secondary">Close</button></div></div>${active.finished ? '<p class="read-only-note">Completed · read-only snapshot</p>' : `<label class="date-control session-date"><span>${active.date>day()?"Planned date":"Workout date"}</span><input id="session-date" type="date" value="${active.date}" required></label>${active.date>day()?'<p>Planned only. Completion is available on the workout date; correct the date if needed.</p>':""}`}${active.exercises
+  app.innerHTML = `<a class="back-link" href="#workout/history">← All sessions</a><section class="session compact-session"><div class="session-heading"><div><p class="eyebrow">ROUTINE DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><div class="session-actions">${correction ? `<button id="session-save">Save</button><button id="session-cancel" class="secondary">Cancel</button>` : `<button data-session-edit="${active.id}" class="secondary">Edit session</button><button id="close-session" class="secondary">Close</button>`}</div></div>${active.finished && !correction ? '<p class="read-only-note">Completed · choose Edit session to make corrections.</p>' : `<label class="date-control session-date"><span>${active.date>day()?"Planned date":"Workout date"}</span><input id="session-date" type="date" value="${active.date}" required></label>${active.date>day()?'<p>Planned only. Completion is available on the workout date; correct the date if needed.</p>':""}`}${correction ? `<p class="edit-notice">Editing this session only. Changes are saved when you choose Save.</p><label class="check-label"><input type="checkbox" id="session-completed" ${active.finished?"checked":""}>Session completed</label>` : ""}${active.exercises
     .map((ex, i) => {
       const previous = sessions
         .filter(
           (s) =>
             s.finished &&
             !s.conflictOf &&
-            s.id !== active.id && s.date <= active.date &&
+            !s._deleted && s.id !== active.id && s.date <= active.date &&
             s.template === active.template &&
             s.unit === active.unit,
         )
@@ -213,11 +217,11 @@ function workout() {
     })
     .join(
       "",
-    )}<article class="session-finish"><label class="check-label"><input id="technique" type="checkbox" ${active.technique ? "checked" : ""}>Technique was consistent and comfortable</label><details><summary>Notes, cardio & recording guidance</summary><p>Dumbbell loads are per hand. Each-arm sets cover both sides; use the lower reps/RIR. Label different machine stacks separately.</p><label>Private session / symptom notes<textarea id="session-notes">${esc(active.notes)}</textarea></label><label>Optional cardio minutes<input id="cardio" type="number" inputmode="numeric" min="0" value="${esc(active.cardio)}"></label><p>Optional 10–20 min walk, stair climber or rowing on D1/D5; other days welcome. Stop or adapt movements that hurt.</p></details><button id="finish">${active.finished ? "Completed — read-only" : "Finish session"}</button></article>${active.editArchive?.length ? `<details><summary>Saved pre-edit entries (${active.editArchive.length})</summary><pre>${esc(JSON.stringify(active.editArchive, null, 2))}</pre></details>` : ""}</section>`;
-  if (active.finished)
+    )}<article class="session-finish"><label class="check-label"><input id="technique" type="checkbox" ${active.technique ? "checked" : ""}>Technique was consistent and comfortable</label><details><summary>Notes, cardio & recording guidance</summary><p>Dumbbell loads are per hand. Each-arm sets cover both sides; use the lower reps/RIR. Label different machine stacks separately.</p><label>Private session / symptom notes<textarea id="session-notes">${esc(active.notes)}</textarea></label><label>Optional cardio minutes<input id="cardio" type="number" inputmode="numeric" min="0" value="${esc(active.cardio)}"></label><p>Optional 10–20 min walk, stair climber or rowing on D1/D5; other days welcome. Stop or adapt movements that hurt.</p></details>${correction ? `<div class="weight-actions"><button id="session-save-bottom">Save changes</button><button id="session-cancel-bottom" class="secondary">Cancel</button></div>` : `${active.finished?"":`<button id="finish">Finish session</button><button id="edit-session" class="secondary">Adjust exercises</button>`}<button class="danger secondary" data-session-delete="${active.id}">Delete session</button>`}</article>${active.editArchive?.length ? `<details><summary>Saved pre-edit entries (${active.editArchive.length})</summary><pre>${esc(JSON.stringify(active.editArchive, null, 2))}</pre></details>` : ""}</section>`;
+  if (active.finished && !correction)
     app
       .querySelectorAll(
-        ".session input,.session textarea,.session button:not(#close-session)",
+        ".session input,.session textarea",
       )
       .forEach((el) => (el.disabled = true));
 }
@@ -247,7 +251,8 @@ app.addEventListener("input", async (e) => {
     updateDraft(editing, t);
     return;
   }
-  if (active?.finished) return;
+  if (active?.finished && !correction) return;
+  if (t.id === "session-completed" && correction) { active.finished = t.checked; return; }
   if (t.dataset.set) {
     const [i, j, k] = t.dataset.set.split(",");
     if (t.type === "number" && !t.validity.valid) return;
@@ -273,7 +278,9 @@ app.addEventListener("change", async (e) => {
   if (e.target.id === "workout-date") { if (validDate(e.target.value)) { workoutDate = e.target.value; workout(); } return; }
   if (e.target.id === "workout-routine") { workoutRoutine = Number(e.target.value); workout(); return; }
   if (e.target.id === "session-date") {
-    if (!active || active.finished || !validDate(e.target.value)) return;
+    if (!active || (active.finished && !correction)) return;
+    if (correction) { active.date = e.target.value; return; }
+    if (!validDate(e.target.value)) return;
     active.date = e.target.value; await save("sessions", active); workout(); return;
   }
   if (["progress-range", "progress-unit", "progress-exercise", "progress-metric"].includes(e.target.id)) captureWeightDraft();
@@ -321,8 +328,8 @@ app.addEventListener("change", async (e) => {
           )
             throw Error("Invalid food");
         }
-        const existing = await readAll(name);
-        for (const r of mergeRecords(existing, data[name])) await save(name, r);
+        const existing = await readAll(name, true);
+        for (const r of mergeRecords(existing, data[name], name === "sessions")) await save(name, r);
       }
       for (const r of mergeRecords(templateRecords, data.templates || []))
         await save("settings", r);
@@ -343,6 +350,43 @@ app.addEventListener("click", async (e) => {
   const t = e.target.closest("button");
   if (!t) return;
   try {
+    if (t.dataset.sessionEdit) {
+      const original = sessions.find(s => s.id === t.dataset.sessionEdit);
+      correction = {original: structuredClone(original), draft: sessionCorrection(original)};
+      active = correction.draft;
+      location.hash = "workout/session/" + active.id;
+      workout(); return;
+    }
+    if (["session-save", "session-save-bottom"].includes(t.id)) {
+      const invalid = [...app.querySelectorAll("input,textarea")].find(el => !el.checkValidity());
+      if (invalid) { invalid.reportValidity(); return; }
+      const current = (await readAll("sessions", true)).find(s => s.id === correction.original.id);
+      if (!current || current._deleted) throw Error("This session was deleted on another device. Cancel to refresh.");
+      const updated = saveSessionCorrection(correction.original, correction.draft);
+      await save("sessions", updated);
+      correction = null; await load(); render(); toast("Session changes saved."); return;
+    }
+    if (["session-cancel", "session-cancel-bottom"].includes(t.id)) {
+      correction = null; await load(); render(); return;
+    }
+    if (t.dataset.sessionDelete) {
+      const record = sessions.find(s => s.id === t.dataset.sessionDelete);
+      if (!record) return;
+      const dialog = document.createElement("dialog");
+      dialog.className = "delete-dialog";
+      dialog.setAttribute("aria-labelledby", "delete-title");
+      dialog.innerHTML = `<h2 id="delete-title">Delete session?</h2><p><strong>${esc(record.title || definitions[record.template].name)}</strong><br>${record.date}</p><p>This removes the session from history and charts on all synced devices.</p><div class="weight-actions"><button class="secondary" id="delete-cancel" autofocus>Keep session</button><button class="danger secondary" data-confirm-delete="${record.id}">Delete session</button></div>`;
+      app.append(dialog); dialog.addEventListener("close", () => dialog.remove());
+      dialog.showModal(); return;
+    }
+    if (t.id === "delete-cancel") { t.closest("dialog").close(); return; }
+    if (t.dataset.confirmDelete) {
+      t.disabled = true;
+      try { await remove("sessions", t.dataset.confirmDelete); }
+      catch (error) { t.disabled = false; throw error; }
+      t.closest("dialog").close(); correction = null; active = null; await load();
+      location.hash = "workout/history"; render(); toast("Session deleted."); return;
+    }
     if (t.dataset.weightEdit) {
       weightDraft = structuredClone(weighIns.find(r => r.id === t.dataset.weightEdit));
       progress();
@@ -474,7 +518,16 @@ async function load() {
       structuredClone(def),
   );
 }
+window.addEventListener("beforeunload", (e) => {
+  if (correction) { e.preventDefault(); e.returnValue = ""; }
+});
 window.addEventListener("hashchange", () => {
+  if (correction && location.hash !== "#workout/session/" + correction.draft.id) {
+    if (!confirm("Discard unsaved session changes?")) {
+      history.replaceState(null, "", "#workout/session/" + correction.draft.id); return;
+    }
+    correction = null;
+  }
   render(); window.scrollTo(0,0);
   const title = app.querySelector("h1, .session-heading h2");
   if (title) { title.tabIndex = -1; title.focus({preventScroll:true}); }
@@ -502,18 +555,18 @@ try {
 }
 
 async function syncNow() {
-  if (syncBusy || editing) return;
+  if (syncBusy || editing || correction || app.querySelector("dialog[open]")) return;
   syncBusy = true;
   try {
     const conflicts = await sync();
     await load();
-    if (active) active = sessions.find((s) => s.id === active.id);
+    if (active && !correction) active = sessions.find((s) => s.id === active.id);
     const pending = (await Promise.all(["sessions", "foods", "logs", "settings"].map(s => readAll(s, true)))).flat().some(r => r._dirty);
     document.querySelector("#status").textContent = pending
       ? "Saved on this device · pending Pi sync"
       : "Synced with Pi · " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     if (conflicts) toast("Conflicting alternatives preserved in history.");
-    if (!document.querySelector("input:focus,textarea:focus,select:focus,#weight-entry[open]")) render();
+    if (!correction && !document.querySelector("input:focus,textarea:focus,select:focus,#weight-entry[open],dialog[open]")) render();
   } catch (e) {
     document.querySelector("#status").textContent =
       ([401, 403].includes(e.status) ? "Saved locally · Pi access denied; check Tailscale account" : e.status === 503 ? "Saved locally · Pi sync is not configured" : "Saved locally · Pi unreachable; retrying automatically");

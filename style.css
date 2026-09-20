@@ -1137,3 +1137,16 @@ nav a:active { transform: scale(.94); }
   .template-grid { padding: 0 13px; }
   nav { gap: 6px; }
 }
+.history-item { background: #0c1119; border-radius: 20px; margin: 12px 0; padding: 0 16px 14px; }
+.history-item .history { padding: 18px 0 12px; margin: 0; }
+.history-actions { display: flex; gap: 8px; }
+.history-actions button { min-height: 44px; padding: 10px 18px; }
+.danger.secondary { color: #ff9b9b; background: #27181e; }
+.session-finish > button { margin: 8px 8px 0 0; }
+.edit-notice { padding: 14px 16px; background: #102039; border-radius: 16px; color: #bed9ff; }
+.session-heading { flex-wrap: wrap; }
+.session-heading > div:first-child { flex: 1 1 170px; }
+.delete-dialog { width: min(360px, calc(100vw - 40px)); border: 1px solid #2a3545; border-radius: 24px; padding: 24px; background: #101722; color: var(--text); box-shadow: 0 24px 80px #0009; }
+.delete-dialog::backdrop { background: #0009; backdrop-filter: blur(5px); }
+.delete-dialog h2 { font-size: 22px; }
+.delete-dialog .weight-actions { margin-top: 22px; }

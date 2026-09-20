@@ -29,9 +29,17 @@ export function reconcile(state, changes) {
       key = store + ":" + clean.id,
       old = next[key];
     if (old?.version === version) continue;
+    // Session deletion wins in either arrival order, including offline edits.
+    // Keep the latest snapshot inside the tombstone; never revive its identity.
+    if (store === "sessions" && old?.record._deleted) continue;
+    if (store === "sessions" && clean._deleted) {
+      const tombstone = { ...(old?.record || clean), _deleted: true };
+      next[key] = { store, record: tombstone, version: digest(tombstone) };
+      continue;
+    }
     if (
       old &&
-      (old.version !== base || (store === "sessions" && old.record.finished))
+      old.version !== base
     ) {
       const conflict = {
         ...clean,

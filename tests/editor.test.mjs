@@ -52,7 +52,7 @@ test("replacement clears old exercise numbers and preserves archive", () => {
   assert.equal(edited.editArchive[0].exercises[0].sets[0].weight, "40");
   assert.equal(sameExercise(edited.exercises[0], session.exercises[0]), false);
 });
-test("completed sessions reject editing and server preserves original snapshots", () => {
+test("completed exercise structure stays protected while versioned corrections sync", () => {
   const s = newSession(0);
   s.finished = true;
   assert.throws(() => editSession(s, sessionDefinition(s)), /read-only/);
@@ -61,8 +61,8 @@ test("completed sessions reject editing and server preserves original snapshots"
   state = reconcile(state, [
     { store: "sessions", base, record: { ...s, title: "Renamed" } },
   ]);
-  assert.equal(state["sessions:" + s.id].record.title, templates[0].name);
-  assert.equal(Object.keys(state).length, 2);
+  assert.equal(state["sessions:" + s.id].record.title, "Renamed");
+  assert.equal(Object.keys(state).length, 1);
 });
 test("custom template sync conflicts stay separate and retry safely", () => {
   const r = {
