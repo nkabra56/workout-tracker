@@ -29,7 +29,10 @@ export function reconcile(state, changes) {
       key = store + ":" + clean.id,
       old = next[key];
     if (old?.version === version) continue;
-    if (old && old.version !== base) {
+    if (
+      old &&
+      (old.version !== base || (store === "sessions" && old.record.finished))
+    ) {
       const conflict = {
         ...clean,
         id: clean.id + "-conflict-" + version.slice(0, 16),

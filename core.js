@@ -64,18 +64,22 @@ export function newSession(
   template,
   unit = "lb",
   increment = unit === "lb" ? 2.5 : 1,
+  definition = templates[template],
 ) {
   return {
     id: uid(),
     date: day(),
+    createdAt: new Date().toISOString(),
+    title: definition.name,
     template,
     unit,
     finished: false,
     technique: false,
     notes: "",
     cardio: 0,
-    exercises: templates[template].exercises.map((x) => ({
-      ...x,
+    exercises: definition.exercises.map((x) => ({
+      ...structuredClone(x),
+      exerciseId: exerciseIdentity(x),
       equipment: "",
       increment,
       sets: Array.from({ length: x.sets }, () => ({
@@ -170,37 +174,21 @@ export function validateRecord(store, r) {
       Array.isArray(r.schedule) &&
       r.schedule.length === 7 &&
       r.schedule.every((x) => Number.isInteger(x) && x >= -1 && x <= 4);
-  if (store === "sessions") {
-    const t = templates[r.template];
+  if (store === "settings" && r.type === "template")
     valid =
-      !!t &&
+      Number.isInteger(r.day) && r.day >= 0 && r.day < 5 && validDefinition(r);
+  if (store === "sessions")
+    valid =
+      Number.isInteger(r.template) &&
+      r.template >= 0 &&
+      r.template < 5 &&
       ["kg", "lb"].includes(r.unit) &&
       /^\d{4}-\d{2}-\d{2}$/.test(r.date) &&
       text(r.notes) &&
-      Array.isArray(r.exercises) &&
-      r.exercises.length === t.exercises.length &&
-      r.exercises.every((e, i) => {
-        const expected = t.exercises[i];
-        return (
-          ["name", "min", "max", "each"].every((k) => e[k] === expected[k]) &&
-          JSON.stringify(e.rest) === JSON.stringify(expected.rest) &&
-          text(e.equipment, 200) &&
-          Array.isArray(e.sets) &&
-          e.sets.length === expected.sets &&
-          e.sets.every(
-            (s) =>
-              typeof s.done === "boolean" &&
-              ["weight", "reps", "rir"].every(
-                (k) =>
-                  s[k] === "" ||
-                  ((typeof s[k] === "number" || typeof s[k] === "string") &&
-                    /^\d+(\.\d+)?$/.test(String(s[k])) &&
-                    finite(Number(s[k]), k === "rir" ? 10 : 1e6)),
-              ),
-          )
-        );
-      });
-  }
+      validDefinition(
+        { name: r.title || templates[r.template].name, exercises: r.exercises },
+        true,
+      );
   if (!valid) throw Error("Invalid " + store + " record");
   return true;
 }
@@ -216,4 +204,102 @@ export function convertWeight(value, from, to) {
   return from === "lb"
     ? Number(value) * 0.45359237
     : Number(value) / 0.45359237;
+}
+
+export function exerciseIdentity(ex) {
+  return (
+    ex.exerciseId ||
+    "exercise-" + ex.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+  );
+}
+export function sameExercise(a, b) {
+  return (
+    exerciseIdentity(a) === exerciseIdentity(b) &&
+    a.min === b.min &&
+    a.max === b.max &&
+    (a.equipment || "") === (b.equipment || "")
+  );
+}
+export function validDefinition(def, session = false) {
+  const integer = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
+  return (
+    typeof def?.name === "string" &&
+    def.name.trim().length > 0 &&
+    def.name.length <= 120 &&
+    Array.isArray(def.exercises) &&
+    def.exercises.length > 0 &&
+    def.exercises.length <= 30 &&
+    def.exercises.every(
+      (e) =>
+        typeof e.name === "string" &&
+        e.name.trim().length > 0 &&
+        e.name.length <= 200 &&
+        (!e.exerciseId || /^[-a-zA-Z0-9]{1,160}$/.test(e.exerciseId)) &&
+        integer(e.min, 1, 1000) &&
+        integer(e.max, e.min, 1000) &&
+        Array.isArray(e.rest) &&
+        e.rest.length === 2 &&
+        integer(e.rest[0], 1, 3600) &&
+        integer(e.rest[1], e.rest[0], 3600) &&
+        typeof e.each === "boolean" &&
+        (session
+          ? typeof e.equipment === "string" &&
+            e.equipment.length <= 200 &&
+            Array.isArray(e.sets) &&
+            e.sets.length > 0 &&
+            e.sets.length <= 20 &&
+            e.sets.every(
+              (s) =>
+                typeof s.done === "boolean" &&
+                ["weight", "reps", "rir"].every(
+                  (k) =>
+                    s[k] === "" ||
+                    ((typeof s[k] === "string" || typeof s[k] === "number") &&
+                      /^\d+(\.\d+)?$/.test(String(s[k])) &&
+                      Number(s[k]) <= (k === "rir" ? 10 : 1e6)),
+                ),
+            )
+          : integer(e.sets, 1, 20)),
+    )
+  );
+}
+export function sessionDefinition(session) {
+  return {
+    name: session.title || templates[session.template].name,
+    exercises: session.exercises.map((e) => ({
+      ...structuredClone(e),
+      exerciseId: exerciseIdentity(e),
+      sets: e.sets.length,
+    })),
+  };
+}
+export function editSession(session, definition) {
+  if (session.finished) throw Error("Completed sessions are read-only.");
+  if (!validDefinition(definition))
+    throw Error("Check exercise names, sets, reps and rest ranges.");
+  const next = structuredClone(session);
+  next.title = definition.name;
+  next.editArchive = [
+    ...(next.editArchive || []),
+    {
+      date: new Date().toISOString(),
+      exercises: structuredClone(session.exercises),
+    },
+  ];
+  next.exercises = definition.exercises.map((e) => {
+    const old = session.exercises.find(
+      (x) => exerciseIdentity(x) === exerciseIdentity(e),
+    );
+    return {
+      ...structuredClone(e),
+      exerciseId: exerciseIdentity(e),
+      equipment: old?.equipment || "",
+      sets: Array.from({ length: e.sets }, (_, i) =>
+        structuredClone(
+          old?.sets[i] || { weight: "", reps: "", rir: "", done: false },
+        ),
+      ),
+    };
+  });
+  return next;
 }

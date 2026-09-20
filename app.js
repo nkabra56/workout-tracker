@@ -10,7 +10,13 @@ import {
   suggestion,
   mergeRecords,
   validateRecord,
+  exerciseIdentity,
+  sameExercise,
+  sessionDefinition,
+  editSession,
+  validDefinition,
 } from "./core.js";
+import { draftFor, renderEditor, updateDraft } from "./editor.js";
 import { readAll, write, remove, sync } from "./storage.js";
 if (navigator.locks) {
   const acquired = await new Promise((resolve) =>
@@ -45,6 +51,9 @@ const app = document.querySelector("#app"),
 let syncEnabled = localStorage.getItem("steadily-sync-enabled") === "yes";
 let syncToken = "",
   syncBusy = false;
+let definitions = structuredClone(templates),
+  templateRecords = [],
+  editing = null;
 let sessions = [],
   foods = [],
   logs = [],
@@ -83,12 +92,21 @@ function heading(kicker, title, subtitle) {
   return `<div class="intro"><p class="eyebrow">${kicker}</p><h1>${title}</h1><p>${subtitle}</p></div>`;
 }
 function render() {
-  const route = location.hash.slice(1) || "workout";
+  if (editing) {
+    app.innerHTML = renderEditor(
+      editing,
+      !!active && !active.finished && active.template === editing.day,
+      templateRecords.filter((r) => r.day === editing.day && r.conflictOf),
+    );
+    return;
+  }
+  const route = location.hash.slice(1) || "today";
   document
     .querySelectorAll("nav a")
     .forEach((a) => a.classList.toggle("selected", a.hash === `#${route}`));
   (
     ({
+      today: today,
       workout: workout,
       nutrition: nutrition,
       progress: progress,
@@ -96,26 +114,70 @@ function render() {
     })[route] || workout
   )();
 }
+function today() {
+  const date = day(),
+    start = new Date();
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  start.setHours(0, 0, 0, 0);
+  const week = sessions.filter(
+    (s) =>
+      s.finished &&
+      !s.conflictOf &&
+      Date.parse(s.date + "T12:00:00") >= start.getTime(),
+  );
+  const daily = totals(logs.filter((l) => l.date === date));
+  const pending = sessions
+    .filter((s) => !s.finished && !s.conflictOf)
+    .sort((a, b) =>
+      (b.createdAt || b.date).localeCompare(a.createdAt || a.date),
+    )[0];
+  const scheduled = settings.schedule[(new Date().getDay() + 6) % 7];
+  const chosen =
+    pending?.template ??
+    (scheduled >= 0 ? scheduled : (settings.schedule.find((x) => x >= 0) ?? 0));
+  const def = pending ? sessionDefinition(pending) : definitions[chosen];
+  const complete = pending
+    ? pending.exercises.reduce(
+        (n, e) => n + e.sets.filter((s) => s.done).length,
+        0,
+      )
+    : 0;
+  const count = def.exercises.reduce((n, e) => n + e.sets, 0);
+  app.innerHTML = `<div class="page-title"><div><p class="eyebrow">${esc(new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }))}</p><h1>Today</h1></div><a class="round-link" href="#settings" aria-label="Your preferences">${personIcon}</a></div><div class="day-strip" aria-label="This week">${Array.from(
+    { length: 7 },
+    (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const ds = d.toLocaleDateString("en-CA"),
+        done = week.some((s) => s.date === ds);
+      return `<div class="${ds === date ? "current-day" : ""}"><span>${["M", "T", "W", "T", "F", "S", "S"][i]}</span><b>${d.getDate()}</b><i class="${done ? "logged-day" : ""}" aria-label="${done ? "Workout complete" : "No completed workout"}"></i></div>`;
+    },
+  ).join(
+    "",
+  )}</div><article class="workout-hero"><div class="hero-top"><span class="eyebrow">${pending ? "CONTINUE YOUR SESSION" : scheduled < 0 ? "REST DAY · YOUR NEXT WORKOUT" : "YOUR WORKOUT"}</span><span class="day-pill">Day ${chosen + 1}</span></div><h2>${esc(def.name)}</h2><p>${def.exercises.length} exercises <span>·</span> ${count} working sets <span>·</span> ${pending ? pending.unit : settings.unit}</p>${pending ? `<div class="session-progress"><progress value="${complete}" max="${count}" aria-label="Completed sets"></progress><small>${complete} of ${count} sets complete</small></div>` : ""}<button class="primary-wide" ${pending ? `data-resume="${pending.id}"` : `data-start="${chosen}"`}>${pending ? "Resume workout" : "Start workout"} <span aria-hidden="true">→</span></button><a class="subtle-link" href="#workout">View all workouts</a></article><div class="section-title section-label"><h2>Daily nutrition</h2><a href="#nutrition">Log food +</a></div><article class="daily-fuel"><div><small>CALORIES LOGGED</small><strong>${Math.round(daily.kcal)} <span>kcal</span></strong></div><div class="macro-line">${["protein", "carbs", "fat"].map((k) => `<div><span>${k[0].toUpperCase() + k.slice(1)}</span><b>${Math.round(daily[k])}<small>g</small></b></div>`).join("")}</div></article><div class="section-title section-label"><h2>This week</h2><a href="#progress">View progress →</a></div><article class="week-summary"><div><strong>${week.length}</strong><span>sessions completed</span></div><p>${settings.schedule.filter((x) => x >= 0).length} training days in your schedule.<br>Build consistency at your own pace.</p></article>`;
+}
+const personIcon =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>';
 function workout() {
   app.innerHTML =
     heading(
       "YOUR TRAINING JOURNAL",
       "Workout",
-      "Choose your session. Keep a steady rhythm.",
+      "Your plan. Make it your own.",
     ) +
-    `<section class="plan"><div><p class="eyebrow">THE WEEK AHEAD</p><div class="week">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<span>${d}<b>${settings.schedule[i] < 0 ? "Rest" : "D" + (settings.schedule[i] + 1)}</b></span>`).join("")}</div></div><p>Target effort: 2–3 reps in reserve<br>Leg day: about 3 RIR</p></section><div class="template-grid">${templates.map((t, i) => `<button class="template" data-start="${i}"><small>DAY 0${i + 1} · ${t.exercises.length} EXERCISES</small><strong>${t.name}</strong><span>Open workout ↗</span></button>`).join("")}</div>`;
+    `<section class="plan"><div><p class="eyebrow">THE WEEK AHEAD</p><div class="week">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<span>${d}<b>${settings.schedule[i] < 0 ? "Rest" : "D" + (settings.schedule[i] + 1)}</b></span>`).join("")}</div></div><p>Target effort: 2–3 reps in reserve<br>Leg day: about 3 RIR</p></section><div class="template-grid">${definitions.map((t, i) => `<div class="template-choice"><button class="template" data-start="${i}"><small>DAY 0${i + 1} · ${t.exercises.length} EXERCISES</small><strong>${esc(t.name)}</strong><span>Open workout ↗</span></button><button class="secondary edit-template" data-edit-template="${i}">Edit workout</button></div>`).join("")}</div>`;
   if (!active) {
     const unfinished = sessions.filter((s) => !s.finished);
     app.innerHTML += unfinished
       .map(
         (s) =>
-          `<button data-resume="${s.id}">Resume ${esc(templates[s.template].name)} · ${esc(s.date)}</button>`,
+          `<button data-resume="${s.id}">Resume ${esc(s.title || templates[s.template].name)} · ${esc(s.date)}</button>`,
       )
       .join("");
     return;
   }
   app.innerHTML = "";
-  app.innerHTML += `<section class="session"><div class="section-title"><div><p class="eyebrow">DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${templates[active.template].name}</h2></div><button id="close-session" class="secondary">Close</button></div><p>Dumbbells: load per hand. Each-arm sets: complete both sides.</p><div class="rest"><b>Manual rest</b><input aria-label="Rest seconds" id="rest-seconds" inputmode="decimal" type="number" min="1" max="1800" value="90"><button id="timer-start">Start</button><button id="timer-stop" class="secondary">Stop</button><output id="clock">Ready</output></div>${active.exercises
+  app.innerHTML += `<section class="session"><div class="section-title"><div><p class="eyebrow">DAY ${active.template + 1} · ${esc(active.date)} · ${active.unit}</p><h2>${esc(active.title || templates[active.template].name)}</h2></div><button id="close-session" class="secondary">Close</button></div>${active.finished ? "<p>Completed session — read-only snapshot.</p>" : '<button id="edit-session" class="secondary">Edit this workout</button>'}<p>Dumbbells: load per hand. Each-arm sets: complete both sides.</p><div class="rest"><b>Manual rest</b><input aria-label="Rest seconds" id="rest-seconds" inputmode="decimal" type="number" min="1" max="1800" value="90"><button id="timer-start">Start</button><button id="timer-stop" class="secondary">Stop</button><output id="clock">Ready</output></div>${active.exercises
     .map((ex, i) => {
       const previous = sessions
         .filter(
@@ -126,13 +188,22 @@ function workout() {
             s.template === active.template &&
             s.unit === active.unit,
         )
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .find((s) => s.exercises[i]?.equipment === ex.equipment);
-      return `<article class="exercise"><div class="section-title"><h3><span class="ordinal">${String(i + 1).padStart(2, "0")}</span>${ex.name}</h3><span class="tag">${ex.min}–${ex.max} reps${ex.each ? " / arm" : ""}</span></div><p>${ex.rest[0] === ex.rest[1] ? ex.rest[0] : ex.rest.join("–")} sec rest${ex.each ? " after both arms" : ""} · ${active.template === 2 ? "~3" : "2–3"} RIR</p><details class="equipment"><summary>Equipment & load increment</summary><label>Equipment / stack label<input data-equipment="${i}" value="${esc(ex.equipment)}" placeholder="e.g. gym A, cable 1"></label><label>Smallest load increase (${active.unit})<input inputmode="decimal" type="number" min="0.01" step="any" data-increment="${i}" value="${esc(ex.increment || convertWeight(settings.increment, settings.unit, active.unit))}"></label></details><div class="set-head"><span>Set</span><span>${active.unit}</span><span>Reps</span><span>RIR</span><span>Done</span></div>${ex.sets.map((s, j) => `<div class="set-row"><b>${j + 1}</b>${["weight", "reps", "rir"].map((k) => `<input aria-label="${esc(ex.name)} set ${j + 1} ${k}" inputmode="decimal" type="number" min="0" ${k === "rir" ? 'max="10"' : ""} step="${k === "weight" ? "0.25" : "1"}" data-set="${i},${j},${k}" value="${esc(s[k])}">`).join("")}<input aria-label="Complete ${esc(ex.name)} set ${j + 1}" type="checkbox" data-set="${i},${j},done" ${s.done ? "checked" : ""}></div><small class="last">Last: ${previous ? esc(`${previous.exercises[i].sets[j].weight || "—"} ${active.unit} × ${previous.exercises[i].sets[j].reps || "—"} · RIR ${previous.exercises[i].sets[j].rir || "—"}`) : "No matching session yet"}</small>`).join("")}</article>`;
+        .sort((a, b) =>
+          (b.createdAt || b.date).localeCompare(a.createdAt || a.date),
+        )
+        .map((s) => s.exercises.find((old) => sameExercise(old, ex)))
+        .find(Boolean);
+      return `<article class="exercise"><div class="section-title"><h3><span class="ordinal">${String(i + 1).padStart(2, "0")}</span>${esc(ex.name)}</h3><span class="tag">${ex.min}–${ex.max} reps${ex.each ? " / arm" : ""}</span></div><p>${ex.rest[0] === ex.rest[1] ? ex.rest[0] : ex.rest.join("–")} sec rest${ex.each ? " after both arms" : ""} · ${active.template === 2 ? "~3" : "2–3"} RIR</p><div class="set-head"><span>Set</span><span>${active.unit}</span><span>Reps</span><span>RIR</span><span>Done</span></div>${ex.sets.map((s, j) => `<div class="set-row"><b>${j + 1}</b>${["weight", "reps", "rir"].map((k) => `<input aria-label="${esc(ex.name)} set ${j + 1} ${k}" inputmode="decimal" type="number" min="0" ${k === "rir" ? 'max="10"' : ""} step="${k === "weight" ? "0.25" : "1"}" data-set="${i},${j},${k}" value="${esc(s[k])}">`).join("")}<input aria-label="Complete ${esc(ex.name)} set ${j + 1}" type="checkbox" data-set="${i},${j},done" ${s.done ? "checked" : ""}></div><small class="last">Last: ${previous ? esc(`${previous.sets[j]?.weight || "—"} ${active.unit} × ${previous.sets[j]?.reps || "—"} · RIR ${previous.sets[j]?.rir || "—"}`) : "No matching session yet"}</small>`).join("")}<details class="equipment"><summary>Equipment & load increment</summary><label>Equipment / stack label<input data-equipment="${i}" value="${esc(ex.equipment)}" placeholder="e.g. gym A, cable 1"></label><label>Smallest load increase (${active.unit})<input inputmode="decimal" type="number" min="0.01" step="any" data-increment="${i}" value="${esc(ex.increment || convertWeight(settings.increment, settings.unit, active.unit))}"></label></details></article>`;
     })
     .join(
       "",
-    )}<article><label><input id="technique" type="checkbox" ${active.technique ? "checked" : ""}> Technique was consistent and comfortable</label><label>Private session / symptom notes<textarea id="session-notes">${esc(active.notes)}</textarea></label><label>Optional cardio minutes<input id="cardio" inputmode="decimal" type="number" min="0" value="${esc(active.cardio)}"></label><p>Optional 10–20 min walk, stair climber or rowing on D1/D5; other days welcome. Stop or adapt movements that hurt.</p><button id="finish">${active.finished ? "Save reviewed session" : "Finish session"}</button></article></section>`;
+    )}<article><label><input id="technique" type="checkbox" ${active.technique ? "checked" : ""}> Technique was consistent and comfortable</label><label>Private session / symptom notes<textarea id="session-notes">${esc(active.notes)}</textarea></label><label>Optional cardio minutes<input id="cardio" inputmode="decimal" type="number" min="0" value="${esc(active.cardio)}"></label><p>Optional 10–20 min walk, stair climber or rowing on D1/D5; other days welcome. Stop or adapt movements that hurt.</p><button id="finish">${active.finished ? "Completed — read-only" : "Finish session"}</button></article>${active.editArchive?.length ? `<details><summary>Saved pre-edit entries (${active.editArchive.length})</summary><pre>${esc(JSON.stringify(active.editArchive, null, 2))}</pre></details>` : ""}</section>`;
+  if (active.finished)
+    app
+      .querySelectorAll(
+        ".session input,.session textarea,.session button:not(#close-session)",
+      )
+      .forEach((el) => (el.disabled = true));
 }
 function nutrition() {
   const daily = logs.filter((l) => l.date === selectedDate),
@@ -152,42 +223,51 @@ function nutrition() {
 function progress() {
   const completed = sessions
     .filter((s) => s.finished && !s.conflictOf)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .sort((a, b) =>
+      (a.createdAt || a.date).localeCompare(b.createdAt || b.date),
+    );
   const recent = completed.filter(
-    (s) => Date.parse(s.date) >= Date.now() - 7 * 864e5,
-  );
+      (s) => Date.parse(s.date) >= Date.now() - 7 * 864e5,
+    ),
+    groups = new Map();
+  for (const session of completed)
+    for (const ex of session.exercises) {
+      const key = [
+        session.template,
+        exerciseIdentity(ex),
+        ex.min,
+        ex.max,
+        session.unit,
+        ex.equipment,
+      ].join("|");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ session, ex });
+    }
   app.innerHTML =
     heading(
       "THE LONG VIEW",
       "Progress",
       "Training indicators, not a measurement of muscle growth.",
     ) +
-    `<div class="metrics"><article><small>LAST 7 DAYS</small><strong>${recent.length} sessions</strong></article><article><small>ALL TIME</small><strong>${completed.length} sessions</strong></article></div><article><h2>Exercise trends</h2><p>Compared within the same day, rep target, unit and equipment. Volume is load × reps (per-hand loads stay per-hand).</p>${templates
-      .map((t, ti) =>
-        t.exercises
-          .map((e, ei) => {
-            const matching = completed.filter((s) => s.template === ti);
-            return matching.length
-              ? `<details><summary>D${ti + 1} · ${e.name} · ${e.min}–${e.max}</summary>${matching
-                  .map((s) => {
-                    const ex = s.exercises[ei],
-                      sets = ex.sets.filter((x) => x.done);
-                    return `<p>${esc(s.date)} · ${esc(ex.equipment || "Unlabeled equipment")} · ${sets.map((x) => `${x.weight || 0} × ${x.reps || 0}`).join(", ")} ${s.unit}<br>Volume ${Math.round(sets.reduce((n, x) => n + Number(x.weight) * Number(x.reps), 0))} ${s.unit}·reps<br>${suggestion(ex, ti === 2 ? 3 : 2, ex.increment || convertWeight(settings.increment, settings.unit, s.unit), s.technique)}</p>`;
-                  })
-                  .join("")}</details>`
-              : "";
-          })
-          .join(""),
+    `<div class="metrics"><article><small>LAST 7 DAYS</small><strong>${recent.length} sessions</strong></article><article><small>ALL TIME</small><strong>${completed.length} sessions</strong></article></div><article><h2>Exercise trends</h2><p>Compared by exercise identity, rep target, day, equipment and unit. Replacing an exercise starts a separate history.</p>${
+      [...groups.values()]
+        .map((rows) => {
+          const { session, ex } = rows[0];
+          return `<details><summary>D${session.template + 1} · ${esc(ex.name)} · ${ex.min}–${ex.max} · ${session.unit}</summary>${rows
+            .map(({ session: s, ex: e }) => {
+              const sets = e.sets.filter((x) => x.done);
+              return `<p>${esc(s.date)} · ${esc(e.equipment || "Unlabeled equipment")}<br>${sets.map((x) => esc(x.weight || 0) + " × " + esc(x.reps || 0)).join(", ")} ${s.unit}<br>Volume ${Math.round(sets.reduce((n, x) => n + Number(x.weight) * Number(x.reps), 0))} ${s.unit}·reps<br>${suggestion(e, s.template === 2 ? 3 : 2, e.increment || convertWeight(settings.increment, settings.unit, s.unit), s.technique)}</p>`;
+            })
+            .join("")}</details>`;
+        })
+        .join("") || "<p>Complete a session to see your history.</p>"
+    }</article><article><h2>Session history</h2>${[...sessions]
+      .reverse()
+      .map(
+        (s) =>
+          `<button class="history secondary" data-resume="${s.id}">${esc(s.date)} · ${esc(s.title || templates[s.template].name)} · ${s.finished ? "Complete" : "In progress"}${s.conflictOf ? " · Alternative — excluded from progress" : ""}</button>`,
       )
-      .join("")}</article><article><h2>Session history</h2>${
-      [...sessions]
-        .reverse()
-        .map(
-          (s) =>
-            `<button class="history secondary" data-resume="${s.id}">${esc(s.date)} · ${templates[s.template].name} · ${s.finished ? "Complete" : "In progress"}${s.conflictOf ? " · Alternative — excluded from progress" : ""}</button>`,
-        )
-        .join("") || "<p>Finish a session to start your story.</p>"
-    }</article>`;
+      .join("")}</article>`;
 }
 function preferences() {
   app.innerHTML =
@@ -200,6 +280,11 @@ function preferences() {
 }
 app.addEventListener("input", async (e) => {
   const t = e.target;
+  if (editing) {
+    updateDraft(editing, t);
+    return;
+  }
+  if (active?.finished) return;
   if (t.dataset.set) {
     const [i, j, k] = t.dataset.set.split(",");
     if (t.type === "number" && !t.validity.valid) return;
@@ -221,6 +306,11 @@ app.addEventListener("input", async (e) => {
   }
 });
 app.addEventListener("change", async (e) => {
+  if (editing) {
+    updateDraft(editing, e.target);
+    if (e.target.id === "editor-scope") render();
+    return;
+  }
   if (e.target.id === "food-date") {
     selectedDate = e.target.value;
     nutrition();
@@ -231,6 +321,9 @@ app.addEventListener("change", async (e) => {
       if (file.size > 10e6) throw Error("Backup too large");
       const data = JSON.parse(await file.text());
       if (data.version !== 1) throw Error("Unsupported backup");
+      if (data.templates !== undefined && !Array.isArray(data.templates))
+        throw Error("Invalid templates");
+      for (const r of data.templates || []) validateRecord("settings", r);
       for (const name of ["sessions", "foods", "logs"]) {
         if (!Array.isArray(data[name])) throw Error("Invalid backup");
         for (const record of data[name]) validateRecord(name, record);
@@ -240,13 +333,6 @@ app.addEventListener("change", async (e) => {
         for (const r of data[name]) {
           if (typeof r.id !== "string") throw Error("Invalid record");
           if (
-            name === "sessions" &&
-            (!templates[r.template] ||
-              !Array.isArray(r.exercises) ||
-              r.exercises.length !== templates[r.template].exercises.length)
-          )
-            throw Error("Invalid session");
-          if (
             name === "foods" &&
             macros.some((k) => !Number.isFinite(r[k]) || r[k] < 0)
           )
@@ -255,6 +341,8 @@ app.addEventListener("change", async (e) => {
         const existing = await readAll(name);
         for (const r of mergeRecords(existing, data[name])) await save(name, r);
       }
+      for (const r of mergeRecords(templateRecords, data.templates || []))
+        await save("settings", r);
       await load();
       render();
       toast(
@@ -269,12 +357,33 @@ app.addEventListener("click", async (e) => {
   const t = e.target.closest("button");
   if (!t) return;
   try {
+    if (t.dataset.editTemplate !== undefined) {
+      const d = Number(t.dataset.editTemplate);
+      editing = draftFor(d, definitions[d]);
+      render();
+      return;
+    }
+    if (t.id === "edit-session") {
+      editing = draftFor(active.template, sessionDefinition(active), "session");
+      render();
+      return;
+    }
+    if (editing) {
+      await handleEditor(t);
+      return;
+    }
     if (t.dataset.start !== undefined) {
+      location.hash = "workout";
       active =
         sessions.find(
           (s) => !s.finished && s.template === Number(t.dataset.start),
         ) ||
-        newSession(Number(t.dataset.start), settings.unit, settings.increment);
+        newSession(
+          Number(t.dataset.start),
+          settings.unit,
+          settings.increment,
+          definitions[Number(t.dataset.start)],
+        );
       if (!sessions.includes(active)) sessions.push(active);
       await save("sessions", active);
       workout();
@@ -289,6 +398,7 @@ app.addEventListener("click", async (e) => {
       workout();
     }
     if (t.id === "finish") {
+      if (active.finished) return;
       active.finished = true;
       await save("sessions", active);
       active = null;
@@ -342,7 +452,14 @@ app.addEventListener("click", async (e) => {
       const blob = new Blob(
         [
           JSON.stringify(
-            { version: 1, sessions, foods, logs, settings },
+            {
+              version: 1,
+              sessions,
+              foods,
+              logs,
+              settings,
+              templates: templateRecords,
+            },
             null,
             2,
           ),
@@ -351,7 +468,7 @@ app.addEventListener("click", async (e) => {
       );
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `steadily-private-${day()}.json`;
+      a.download = `lifty-private-${day()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }
@@ -475,6 +592,12 @@ async function load() {
   );
   const p = await readAll("settings");
   settings = p.find((x) => x.id === "preferences") || settings;
+  templateRecords = p.filter((x) => x.type === "template");
+  definitions = templates.map(
+    (def, i) =>
+      templateRecords.find((r) => r.day === i && !r.conflictOf) ||
+      structuredClone(def),
+  );
 }
 window.addEventListener("hashchange", render);
 window.addEventListener("storage", () =>
@@ -497,7 +620,7 @@ try {
 }
 
 async function syncNow() {
-  if (syncBusy) return;
+  if (syncBusy || editing) return;
   if (!syncToken && !syncEnabled) {
     toast("Enter your Pi access key in You → Private Pi sync.");
     return;
@@ -542,3 +665,96 @@ setInterval(() => {
 }, 30000);
 
 if (syncEnabled && navigator.onLine) syncNow();
+
+async function handleEditor(t) {
+  if (t.id === "editor-cancel") {
+    editing = null;
+    render();
+    return;
+  }
+  if (t.dataset.move) {
+    const [i, delta] = t.dataset.move.split(",").map(Number);
+    const [ex] = editing.exercises.splice(i, 1);
+    editing.exercises.splice(i + delta, 0, ex);
+    render();
+  }
+  if (t.dataset.removeExercise !== undefined) {
+    editing.exercises.splice(Number(t.dataset.removeExercise), 1);
+    render();
+  }
+  if (t.id === "editor-add") {
+    if (editing.exercises.length >= 30)
+      throw Error("Maximum 30 exercises per workout.");
+    editing.exercises.push({
+      name: "New exercise",
+      exerciseId: uid(),
+      sets: 2,
+      min: 8,
+      max: 12,
+      rest: [90, 120],
+      each: false,
+    });
+    render();
+  }
+  if (t.id === "editor-restore") {
+    if (
+      confirm(
+        "Restore the original Day " +
+          (editing.day + 1) +
+          " in this editor? Save to apply. Completed history is unchanged.",
+      )
+    ) {
+      editing = draftFor(editing.day, templates[editing.day], editing.scope);
+      render();
+    }
+  }
+  if (t.dataset.templateAlternative) {
+    const alternative = templateRecords.find(
+      (r) => r.id === t.dataset.templateAlternative,
+    );
+    editing = draftFor(alternative.day, alternative);
+    render();
+  }
+  if (t.id === "editor-save") {
+    const definition = {
+      name: editing.name.trim(),
+      exercises: editing.exercises.map((e) => ({
+        name: e.name.trim(),
+        exerciseId: e.exerciseId,
+        sets: e.sets,
+        min: e.min,
+        max: e.max,
+        rest: e.rest,
+        each: e.each,
+      })),
+    };
+    if (!validDefinition(definition))
+      throw Error(
+        "Use 1–30 named exercises, 1–20 sets, valid rep ranges and 1–3600 seconds rest.",
+      );
+    if (editing.scope === "session") {
+      active = editSession(active, definition);
+      await save("sessions", active);
+      sessions = sessions.map((s) => (s.id === active.id ? active : s));
+    } else {
+      const prior = templateRecords.find(
+        (r) => r.id === "template-" + editing.day,
+      );
+      await save("settings", {
+        ...prior,
+        id: "template-" + editing.day,
+        type: "template",
+        day: editing.day,
+        ...definition,
+      });
+      await load();
+    }
+    const message =
+      editing.scope === "session"
+        ? "This session updated. Future template unchanged."
+        : "Future template saved. Current and completed sessions unchanged.";
+    editing = null;
+    render();
+    toast(message);
+  }
+}

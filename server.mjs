@@ -11,6 +11,7 @@ const root = fileURLToPath(new URL("./", import.meta.url));
 const allowed = new Set([
   "index.html",
   "app.js",
+  "editor.js",
   "core.js",
   "storage.js",
   "style.css",

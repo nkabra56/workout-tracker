@@ -57,3 +57,13 @@ Every installation generates its own random 256-bit access key; none is shipped 
 Each person should run their own independent instance, data directory, private HTTPS hostname and generated key. Installing the frontend alone does not provide a private shared hosting service. See the repeatable installer in `deploy/install.sh`. The same-origin shell uses no third-party scripts. XSS defenses include escaped user text, typed record validation, CSP and explicit static file allowlisting. Device/browser compromise can still expose local journal data; this is not an encrypted vault or a guarantee against compromise.
 
 Body weight is optional and labeled with its own unit. Switching units converts its numeric value and the default load increment; historical workout loads retain their original session units. Recipe ingredients and food portions remain in grams.
+
+## Customize workouts
+
+Open **Train**, then **Edit workout** beside a day. Add or remove exercises, type a known or custom exercise name, move exercises with the arrow buttons, and edit working sets, rep ranges and rest ranges. **Save future template** changes only newly started sessions. An in-progress workout has its own **Edit this workout** button; select **This session only** to avoid changing the saved template. An already-started session intentionally keeps its existing snapshot when the future template changes.
+
+Completed sessions are read-only snapshots. Reordering preserves exercise identities; replacing a name creates a separate history. Session edits preserve prior entries in the session's edit archive and JSON backup. Original defaults remain available through **Restore original Day**, with confirmation and a final save. Saved templates use the existing private IndexedDB/sync pipeline and are included in backups. Concurrent template changes remain separate alternatives in the editor until reviewed.
+
+## Design
+
+The original Today layout takes workflow inspiration from MyFitnessPal's [Today documentation](https://support.myfitnesspal.com/hc/en-us/articles/39985611667341-Your-Today-tab): a useful daily summary and quick access to common logging actions. Lifty keeps its own midnight/blue visual design, illustration, workout-first focus and full scrolling session. No MyFitnessPal assets are bundled. Open **Today → profile icon → Private Pi sync** to sign in; the labels remain **Private access key** and **Unlock & sync**. Sync retries every 30 seconds while signed in and the app is open, and on reconnect. **Synced with Pi** confirms acknowledgement; **Saved on this device · pending Pi sync** does not.
