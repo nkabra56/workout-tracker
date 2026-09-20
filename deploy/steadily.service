@@ -1,0 +1,22 @@
+[Unit]
+Description=Steadily private journal
+After=network.target
+
+[Service]
+Type=simple
+User=steadily
+Group=steadily
+WorkingDirectory=/opt/steadily
+EnvironmentFile=/etc/steadily.env
+ExecStart=/usr/bin/node /opt/steadily/server.mjs
+Restart=on-failure
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/steadily
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target
