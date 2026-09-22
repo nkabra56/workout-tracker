@@ -1,3 +1,4 @@
+import {applySyncRecord} from "./core.js";
 const db = new Promise((resolve, reject) => {
   const r = indexedDB.open("steadily", 1);
   r.onupgradeneeded = () => {
@@ -57,6 +58,7 @@ export async function sync() {
           : "Sync unavailable; local changes are safe.",
     ), { status: response.status });
   const incoming = await response.json();
+  const newConflicts = incoming.filter(item => item.record.conflictOf && !snapshots[stores.indexOf(item.store)].some(r => r.id === item.record.id)).length;
   const d = await db;
   await new Promise((resolve, reject) => {
     const tx = d.transaction(stores, "readwrite");
@@ -68,14 +70,12 @@ export async function sync() {
           snapshot = snapshots[stores.indexOf(item.store)].find(
             (r) => r.id === item.record.id,
           );
-        if (current && JSON.stringify(current) !== JSON.stringify(snapshot))
-          return;
-        objectStore.put({ ...item.record, _base: item.version, _dirty: false });
+        objectStore.put(applySyncRecord(current, snapshot, item));
       };
     }
     tx.oncomplete = resolve;
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });
-  return incoming.filter((i) => i.record.conflictOf).length;
+  return newConflicts;
 }

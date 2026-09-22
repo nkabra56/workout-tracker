@@ -347,3 +347,22 @@ export function saveSessionCorrection(original, draft, today = day()) {
   validateRecord("sessions", next);
   return next;
 }
+
+// Ignore transport metadata when matching an acknowledgement to what we sent.
+export function recordContent(record) {
+  if (!record) return null;
+  const {_base, _dirty, _version, ...content} = record;
+  return JSON.stringify(content);
+}
+export function applySyncRecord(current, snapshot, item) {
+  if (item.store === "sessions" && item.record._deleted)
+    return {...item.record, _base:item.version, _dirty:false};
+  if (current && JSON.stringify(current) !== JSON.stringify(snapshot)) {
+    // The server accepted this device's snapshot while the user kept typing.
+    // Advance its base, but retain every newer local value for the next sync.
+    if (snapshot?._dirty && recordContent(snapshot) === recordContent(item.record))
+      return {...current, _base:item.version, _dirty:true};
+    return current;
+  }
+  return {...item.record, _base:item.version, _dirty:false};
+}

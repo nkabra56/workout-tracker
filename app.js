@@ -2,6 +2,7 @@ import { routeFor, sectionLinks } from "./navigation.js";
 import { renderProgress, legacyWeighIn } from "./progress.js";
 import { startAutomaticSync } from "./automatic-sync.js";
 import {
+  recordContent,
   sessionCorrection,
   saveSessionCorrection,
   templates,
@@ -53,7 +54,9 @@ const app = document.querySelector("#app"),
           "'": "&#39;",
         })[c],
     );
-let syncBusy = false;
+let syncBusy = false, syncAgain = false;
+let localRevision = 0;
+const pendingWrites = new Set();
 let correction = null;
 let workoutDate = day(), workoutRoutine = 0;
 let weighIns = [], progressRange = 90, progressUnit = "lb", progressExercise = "", progressMetric = "load", weightDraft = null;
@@ -82,15 +85,18 @@ async function save(store, r) {
   if (store === "sessions" && correction && r === correction.draft) return;
   validateRecord(store, r);
   document.querySelector("#status").textContent = "Saving…";
+  localRevision++;
+  const pending = write(store, r);
+  pendingWrites.add(pending);
   try {
-    await write(store, r);
+    await pending;
     document.querySelector("#status").textContent =
       "Saved on this device · pending Pi sync";
   } catch (e) {
     document.querySelector("#status").textContent =
       "SAVE FAILED — export a backup now";
     throw e;
-  }
+  } finally { pendingWrites.delete(pending); }
 }
 function heading(kicker, title, subtitle) {
   return `<div class="intro"><p class="eyebrow">${kicker}</p><h1>${title}</h1><p>${subtitle}</p></div>`;
@@ -362,7 +368,8 @@ app.addEventListener("click", async (e) => {
       if (invalid) { invalid.reportValidity(); return; }
       const current = (await readAll("sessions", true)).find(s => s.id === correction.original.id);
       if (!current || current._deleted) throw Error("This session was deleted on another device. Cancel to refresh.");
-      const updated = saveSessionCorrection(correction.original, correction.draft);
+      const original = recordContent(current) === recordContent(correction.original) ? current : correction.original;
+      const updated = saveSessionCorrection(original, correction.draft);
       await save("sessions", updated);
       correction = null; await load(); render(); toast("Session changes saved."); return;
     }
@@ -555,23 +562,31 @@ try {
 }
 
 async function syncNow() {
-  if (syncBusy || editing || correction || app.querySelector("dialog[open]")) return;
+  if (syncBusy) { syncAgain = true; return; }
+  if (editing || correction || app.querySelector("dialog[open]")) return;
   syncBusy = true;
   try {
     const conflicts = await sync();
-    await load();
+    let revision;
+    do {
+      await Promise.all([...pendingWrites]);
+      revision = localRevision;
+      await load();
+    } while (revision !== localRevision);
     if (active && !correction) active = sessions.find((s) => s.id === active.id);
     const pending = (await Promise.all(["sessions", "foods", "logs", "settings"].map(s => readAll(s, true)))).flat().some(r => r._dirty);
+    if (pending) syncAgain = true;
     document.querySelector("#status").textContent = pending
       ? "Saved on this device · pending Pi sync"
       : "Synced with Pi · " + new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    if (conflicts) toast("Conflicting alternatives preserved in history.");
+    if (conflicts) toast("A different saved version was found. Both are kept in History for review.");
     if (!correction && !document.querySelector("input:focus,textarea:focus,select:focus,#weight-entry[open],dialog[open]")) render();
   } catch (e) {
     document.querySelector("#status").textContent =
       ([401, 403].includes(e.status) ? "Saved locally · Pi access denied; check Tailscale account" : e.status === 503 ? "Saved locally · Pi sync is not configured" : "Saved locally · Pi unreachable; retrying automatically");
   } finally {
     syncBusy = false;
+    if (syncAgain) { syncAgain = false; setTimeout(syncNow, 250); }
   }
 }
 startAutomaticSync(syncNow);
