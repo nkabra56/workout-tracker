@@ -63,6 +63,31 @@ test("sync retries, stale edits and deletions preserve records", () => {
   ]);
   assert.equal(state["foods:a"].record._deleted, true);
 });
+test("deletion wins for every store even against a stale base, not just sessions", () => {
+  const create = {
+    store: "settings",
+    record: {
+      id: "w1",
+      type: "weighin",
+      value: 180,
+      unit: "lb",
+      date: "2024-01-01",
+      note: "",
+    },
+  };
+  let state = reconcile({}, [create]);
+  const base = state["settings:w1"].version;
+  // Another device edits the record, advancing its version past this device's base.
+  state = reconcile(state, [
+    { store: "settings", record: { ...create.record, note: "edited elsewhere" }, base },
+  ]);
+  // This device deletes it, still holding the stale (pre-edit) base.
+  state = reconcile(state, [
+    { store: "settings", record: { id: "w1", _deleted: true }, base },
+  ]);
+  assert.equal(state["settings:w1"].record._deleted, true);
+  assert.equal(Object.keys(state).length, 1);
+});
 
 test("signed browser sessions expire and reject tampering", async () => {
   const { issueSession, validSession } = await import("../sync-server.mjs");

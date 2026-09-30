@@ -72,7 +72,7 @@ test('offline deletion survives disk reload, stale edits, retries and stale back
     const reload=await syncDisk(dir,[]);const records=reload.map(x=>x.record);
     assert.equal(exerciseGroups(records,30,today).length,0);
     assert.equal(weeklyActivity(records,30,today).reduce((n,w)=>n+w.sessions,0),0);
-    assert.equal(mergeRecords(records,[s],true)[0]._deleted,true);
-    assert.equal(mergeRecords([s],records,true)[0]._deleted,true);
+    assert.equal(mergeRecords(records,[s])[0]._deleted,true);
+    assert.equal(mergeRecords([s],records)[0]._deleted,true);
   } finally { await rm(dir,{recursive:true,force:true}); }
 });

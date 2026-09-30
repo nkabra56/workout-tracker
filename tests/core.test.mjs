@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import {
   templates,
   newSession,
-  recipe,
-  totals,
   suggestion,
   mergeRecords,
 } from "../core.js";
@@ -28,19 +26,6 @@ test("new sessions have unique identities and untouched independent sets", () =>
   assert.notEqual(a.id, b.id);
   assert.equal(a.exercises[0].sets[1].done, false);
   assert.equal(b.exercises[0].sets[0].done, false);
-});
-test("recipe includes oil and cooked yield; portions scale all macros", () => {
-  const r = recipe(
-    [
-      { food: { kcal: 100, protein: 10, carbs: 10, fat: 2 }, grams: 200 },
-      { food: { kcal: 900, protein: 0, carbs: 0, fat: 100 }, grams: 10 },
-    ],
-    400,
-  );
-  assert.equal(r.kcal, 72.5);
-  assert.ok(Math.abs(r.fat - 3.5) < 1e-10);
-  assert.equal(totals([{ food: r, grams: 200 }]).protein, 10);
-  assert.throws(() => recipe([], 0));
 });
 test("progression requires every set, RIR and technique", () => {
   const e = {
@@ -73,15 +58,4 @@ test("weight conversion changes magnitude, never relabels it", async () => {
   assert.ok(Math.abs(convertWeight(45.359237, "kg", "lb") - 100) < 1e-8);
   assert.equal(convertWeight(20, "kg", "kg"), 20);
   assert.throws(() => convertWeight(1, "grams", "lb"));
-});
-
-test("unresolved alternatives and tombstones never inflate nutrition totals", () => {
-  const food = { kcal: 100, protein: 10, carbs: 12, fat: 3 };
-  const result = totals([
-    { id: "a", food, grams: 100 },
-    { id: "b", conflictOf: "a", food, grams: 300 },
-    { id: "c", _deleted: true, food, grams: 200 },
-  ]);
-  assert.equal(result.kcal, 100);
-  assert.equal(result.protein, 10);
 });

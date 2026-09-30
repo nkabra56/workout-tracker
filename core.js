@@ -94,21 +94,6 @@ export function newSession(
   };
 }
 export const macros = ["kcal", "protein", "carbs", "fat"];
-export function recipe(ingredients, yieldGrams) {
-  if (!(yieldGrams > 0) || !ingredients.length)
-    throw Error("Add ingredients and a positive cooked batch weight.");
-  return Object.fromEntries(
-    macros.map((k) => [
-      k,
-      (ingredients.reduce(
-        (n, i) => n + (Number(i.food[k]) * i.grams) / 100,
-        0,
-      ) /
-        yieldGrams) *
-        100,
-    ]),
-  );
-}
 export function suggestion(ex, minRir, increment, technique) {
   return technique &&
     ex.sets.every(
@@ -122,23 +107,13 @@ export function suggestion(ex, minRir, increment, technique) {
     ? `Consider +${increment} next time; return to ${ex.min} reps. Keep technique comfortable.`
     : "Build reps within the target range before adding load.";
 }
-export function totals(logs) {
-  return Object.fromEntries(
-    macros.map((k) => [
-      k,
-      logs
-        .filter((l) => !l.conflictOf && !l._deleted)
-        .reduce((n, l) => n + (Number(l.food[k]) * l.grams) / 100, 0),
-    ]),
-  );
-}
-export function mergeRecords(existing, incoming, deletionWins = false) {
+export function mergeRecords(existing, incoming) {
   const result = new Map(existing.map((x) => [x.id, x]));
   for (const r of incoming) {
     if (!r.id) throw Error("Invalid record");
     const old = result.get(r.id);
-    if (deletionWins && old?._deleted) continue;
-    if (deletionWins && r._deleted) { result.set(r.id, {...(old || r), _deleted:true}); continue; }
+    if (old?._deleted) continue;
+    if (r._deleted) { result.set(r.id, {...(old || r), _deleted:true}); continue; }
     if (!old) result.set(r.id, r);
     else if (JSON.stringify(old) !== JSON.stringify(r)) {
       const conflictId = r.id + "-conflict-" + hash(JSON.stringify(r));
@@ -150,7 +125,7 @@ export function mergeRecords(existing, incoming, deletionWins = false) {
 }
 function hash(s) {
   let h = 2166136261;
-  for (const c of s) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return (h >>> 0).toString(16);
 }
 export function validateRecord(store, r) {

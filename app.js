@@ -285,9 +285,10 @@ app.addEventListener("change", async (e) => {
   if (e.target.id === "workout-routine") { workoutRoutine = Number(e.target.value); workout(); return; }
   if (e.target.id === "session-date") {
     if (!active || (active.finished && !correction)) return;
-    if (correction) { active.date = e.target.value; return; }
     if (!validDate(e.target.value)) return;
-    active.date = e.target.value; await save("sessions", active); workout(); return;
+    active.date = e.target.value;
+    if (correction) { workout(); return; }
+    await save("sessions", active); workout(); return;
   }
   if (["progress-range", "progress-unit", "progress-exercise", "progress-metric"].includes(e.target.id)) captureWeightDraft();
   if (e.target.id === "progress-range") { progressRange = Number(e.target.value); progress(); return; }
@@ -335,7 +336,7 @@ app.addEventListener("change", async (e) => {
             throw Error("Invalid food");
         }
         const existing = await readAll(name, true);
-        for (const r of mergeRecords(existing, data[name], name === "sessions")) await save(name, r);
+        for (const r of mergeRecords(existing, data[name])) await save(name, r);
       }
       for (const r of mergeRecords(templateRecords, data.templates || []))
         await save("settings", r);
@@ -429,11 +430,11 @@ app.addEventListener("click", async (e) => {
     if (t.dataset.resume) {
       active = sessions.find((s) => s.id === t.dataset.resume);
       location.hash = "workout/session/" + active.id;
-      workout();
+      workout(); return;
     }
     if (t.id === "close-session") {
       active = null;
-      location.hash="workout/log"; workout();
+      location.hash="workout/log"; workout(); return;
     }
     if (t.id === "finish") {
       if (active.finished) return;
@@ -442,15 +443,17 @@ app.addEventListener("click", async (e) => {
       await save("sessions", active);
       active = null;
       location.hash = "workout/history";
-      render();
+      render(); return;
     }
-    if (t.id === "persist")
+    if (t.id === "persist") {
       toast(
         (await navigator.storage?.persist())
           ? "Persistent storage granted"
           : "Browser did not grant persistence; keep backups.",
       );
-    if (t.id === "sync-now") await syncNow();
+      return;
+    }
+    if (t.id === "sync-now") { await syncNow(); return; }
     if (t.id === "export") {
       const blob = new Blob(
         [
