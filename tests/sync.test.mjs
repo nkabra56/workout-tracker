@@ -8,60 +8,43 @@ test("sync authorization fails closed", () => {
 });
 test("sync retries, stale edits and deletions preserve records", () => {
   const create = {
-    store: "foods",
+    store: "settings",
     record: {
       id: "a",
-      name: "Test",
-      source: "Label",
-      kcal: 100,
-      protein: 1,
-      carbs: 2,
-      fat: 3,
+      type: "weighin",
+      value: 180,
+      unit: "lb",
+      date: "2024-01-01",
+      note: "",
     },
   };
   let state = reconcile({}, [create]);
   assert.equal(Object.keys(reconcile(state, [create])).length, 1);
-  const base = state["foods:a"].version;
+  const base = state["settings:a"].version;
   state = reconcile(state, [
     {
-      store: "foods",
-      record: {
-        id: "a",
-        name: "Test",
-        source: "Label",
-        kcal: 120,
-        protein: 1,
-        carbs: 2,
-        fat: 3,
-      },
+      store: "settings",
+      record: { ...create.record, note: "first edit" },
       base,
     },
   ]);
   const stale = {
-    store: "foods",
-    record: {
-      id: "a",
-      name: "Test",
-      source: "Label",
-      kcal: 80,
-      protein: 1,
-      carbs: 2,
-      fat: 3,
-    },
+    store: "settings",
+    record: { ...create.record, note: "conflicting edit" },
     base,
   };
   state = reconcile(state, [stale]);
   assert.equal(Object.keys(state).length, 2);
   assert.equal(Object.keys(reconcile(state, [stale])).length, 2);
-  assert.equal(state["foods:a"].record.kcal, 120);
+  assert.equal(state["settings:a"].record.note, "first edit");
   state = reconcile(state, [
     {
-      store: "foods",
+      store: "settings",
       record: { id: "a", _deleted: true },
-      base: state["foods:a"].version,
+      base: state["settings:a"].version,
     },
   ]);
-  assert.equal(state["foods:a"].record._deleted, true);
+  assert.equal(state["settings:a"].record._deleted, true);
 });
 test("deletion wins for every store even against a stale base, not just sessions", () => {
   const create = {

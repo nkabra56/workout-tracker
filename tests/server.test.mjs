@@ -70,25 +70,24 @@ test("HTTP service protects records, enforces origin and persists authenticated 
     assert.match(authenticated.headers.get("set-cookie"), /Max-Age=31536000/);
     assert.match(authenticated.headers.get("set-cookie"), /HttpOnly/);
     const record = {
-      id: "test-food",
-      name: "Test food",
-      source: "Test label",
-      kcal: 100,
-      protein: 5,
-      carbs: 10,
-      fat: 3,
+      id: "test-weighin",
+      type: "weighin",
+      value: 180,
+      unit: "lb",
+      date: "2026-01-01",
+      note: "",
     };
     let r = await fetch(base + "/api/sync", {
       method: "POST",
       headers,
-      body: JSON.stringify({ changes: [{ store: "foods", record }] }),
+      body: JSON.stringify({ changes: [{ store: "settings", record }] }),
     });
     assert.equal(r.status, 200);
     assert.equal((await r.json()).length, 1);
     r = await fetch(base + "/api/sync", {
       method: "POST",
       headers,
-      body: JSON.stringify({ changes: [{ store: "foods", record }] }),
+      body: JSON.stringify({ changes: [{ store: "settings", record }] }),
     });
     assert.equal((await r.json()).length, 1);
   } finally {

@@ -14,7 +14,7 @@ export function reconcile(state, changes) {
   for (const change of changes) {
     const { store, record, base } = change;
     if (
-      !["sessions", "foods", "logs", "settings"].includes(store) ||
+      !["sessions", "settings"].includes(store) ||
       !record ||
       typeof record.id !== "string" ||
       record.id.length > 160

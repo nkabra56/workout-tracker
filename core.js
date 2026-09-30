@@ -93,7 +93,6 @@ export function newSession(
     })),
   };
 }
-export const macros = ["kcal", "protein", "carbs", "fat"];
 export function suggestion(ex, minRir, increment, technique) {
   return technique &&
     ex.sets.every(
@@ -132,24 +131,14 @@ export function validateRecord(store, r) {
   const finite = (x, max = 1e7) =>
     typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= max;
   const text = (x, max = 5000) => typeof x === "string" && x.length <= max;
-  const food = (f) =>
-    f &&
-    text(f.name, 200) &&
-    text(f.source, 300) &&
-    macros.every((k) => finite(f[k]));
   if (!r || !text(r.id, 160) || !/^[-a-zA-Z0-9]+$/.test(r.id))
     throw Error("Invalid record identity");
   if (r._deleted === true) return true;
   let valid = false;
-  if (store === "foods") valid = food(r);
-  if (store === "logs")
-    valid =
-      food(r.food) && finite(r.grams) && /^\d{4}-\d{2}-\d{2}$/.test(r.date);
   if (store === "settings")
     valid =
       ["kg", "lb"].includes(r.unit) &&
       finite(r.increment) &&
-      text(r.diet) &&
       Array.isArray(r.schedule) &&
       r.schedule.length === 7 &&
       r.schedule.every((x) => Number.isInteger(x) && x >= -1 && x <= 4);

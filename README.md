@@ -26,7 +26,7 @@ The default listener is loopback port5173. The offline shell works locally; priv
 
 The three bottom destinations are supplemented by named section navigation, contextual entry links and back navigation. Open sections, clear exercise headings, separators and aligned controls replace enclosing rounded cards. Touch targets stay at least44px; short navigation/interaction transitions respect prefers-reduced-motion.
 
-Food tracking has been removed: no Nutrition tab, calorie/macronutrient display, diet setting, food search, custom-food or recipe workflow. The external food lookup endpoint is removed. Historical nutrition records remain inert in the existing database, sync schema and JSON exports/imports so this interface change does not delete data or break old backups. No new third-party food requests are made.
+Food tracking has been removed: no Nutrition tab, calorie/macronutrient display, diet setting, food search, custom-food or recipe workflow. The `foods`/`logs` stores, their sync and validation support, and the diet preference field have been removed entirely, since no installation ever held real data in them. No new third-party food requests are made.
 
 ## Workout dates and progression
 

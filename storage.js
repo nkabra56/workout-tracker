@@ -2,7 +2,7 @@ import {applySyncRecord} from "./core.js";
 const db = new Promise((resolve, reject) => {
   const r = indexedDB.open("steadily", 1);
   r.onupgradeneeded = () => {
-    for (const name of ["sessions", "foods", "logs", "settings"])
+    for (const name of ["sessions", "settings"])
       r.result.createObjectStore(name, { keyPath: "id" });
   };
   r.onsuccess = () => resolve(r.result);
@@ -34,7 +34,7 @@ export async function remove(store, id) {
   if (record) await write(store, { ...record, _deleted: true });
 }
 export async function sync() {
-  const stores = ["sessions", "foods", "logs", "settings"];
+  const stores = ["sessions", "settings"];
   const snapshots = await Promise.all(stores.map((s) => readAll(s, true)));
   const changes = snapshots.flatMap((rs, i) =>
     rs

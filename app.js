@@ -12,7 +12,6 @@ import {
   convertWeight,
   day,
   uid,
-  macros,
   suggestion,
   mergeRecords,
   validateRecord,
@@ -65,14 +64,11 @@ let definitions = structuredClone(templates),
   templateRecords = [],
   editing = null;
 let sessions = [],
-  foods = [],
-  logs = [],
   settings = {
     id: "preferences",
     unit: "lb",
     increment: 2.5,
     schedule: [0, 1, 2, 3, -1, 4, -1],
-    diet: "",
   },
   active;
 const num = (name, label, value = "", step = "any") =>
@@ -321,23 +317,13 @@ app.addEventListener("change", async (e) => {
         if (r.type !== "weighin") throw Error("Invalid body-weight entry");
         validateRecord("settings", r);
       }
-      for (const name of ["sessions", "foods", "logs"]) {
-        if (!Array.isArray(data[name])) throw Error("Invalid backup");
-        for (const record of data[name]) validateRecord(name, record);
+      if (!Array.isArray(data.sessions)) throw Error("Invalid backup");
+      for (const record of data.sessions) {
+        validateRecord("sessions", record);
+        if (typeof record.id !== "string") throw Error("Invalid record");
       }
-      for (const name of ["sessions", "foods", "logs"]) {
-        if (!Array.isArray(data[name])) throw Error("Invalid backup");
-        for (const r of data[name]) {
-          if (typeof r.id !== "string") throw Error("Invalid record");
-          if (
-            name === "foods" &&
-            macros.some((k) => !Number.isFinite(r[k]) || r[k] < 0)
-          )
-            throw Error("Invalid food");
-        }
-        const existing = await readAll(name, true);
-        for (const r of mergeRecords(existing, data[name])) await save(name, r);
-      }
+      const existingSessions = await readAll("sessions", true);
+      for (const r of mergeRecords(existingSessions, data.sessions)) await save("sessions", r);
       for (const r of mergeRecords(templateRecords, data.templates || []))
         await save("settings", r);
       const storedWeights = (await readAll("settings", true)).filter(r => r.type === "weighin");
@@ -461,8 +447,6 @@ app.addEventListener("click", async (e) => {
             {
               version: 1,
               sessions,
-              foods: await readAll("foods", true),
-              logs: await readAll("logs", true),
               settings,
               templates: templateRecords,
               weighIns: (await readAll("settings", true)).filter(r => r.type === "weighin"),
@@ -512,9 +496,7 @@ app.addEventListener("submit", async (e) => {
   }
 });
 async function load() {
-  [sessions, foods, logs] = await Promise.all(
-    ["sessions", "foods", "logs"].map(name => readAll(name)),
-  );
+  sessions = await readAll("sessions");
   const allSettings = await readAll("settings", true);
   const p = allSettings.filter(r => !r._deleted);
   settings = p.find((x) => x.id === "preferences") || settings;
@@ -577,7 +559,7 @@ async function syncNow() {
       await load();
     } while (revision !== localRevision);
     if (active && !correction) active = sessions.find((s) => s.id === active.id);
-    const pending = (await Promise.all(["sessions", "foods", "logs", "settings"].map(s => readAll(s, true)))).flat().some(r => r._dirty);
+    const pending = (await Promise.all(["sessions", "settings"].map(s => readAll(s, true)))).flat().some(r => r._dirty);
     if (pending) syncAgain = true;
     document.querySelector("#status").textContent = pending
       ? "Saved on this device · pending Pi sync"
