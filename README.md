@@ -12,6 +12,8 @@ node --test
 node scripts/build.mjs
 ```
 
+For browser integration checks, make the `playwright` package and its Chromium browser available, then run `npm run test:browser`. Alternatively, set `PLAYWRIGHT_MODULE` to an existing Playwright package directory and `PLAYWRIGHT_CHANNEL` to an installed channel such as `msedge`. The runner uses an isolated temporary database and browser profile on local port 5188; it never connects to the Pi. It checks logging, corrections, charts, backups, deletion, automatic sync and offline reload, and saves a screenshot to `dist/browser-smoke.png`.
+
 The default listener is loopback port5173. The offline shell works locally; private synchronization needs the server configuration in [PI-DEPLOYMENT.md](PI-DEPLOYMENT.md). Environment files, backups and server modules are never served as static assets.
 
 ## Navigation
@@ -26,7 +28,7 @@ The default listener is loopback port5173. The offline shell works locally; priv
 
 The three bottom destinations are supplemented by named section navigation, contextual entry links and back navigation. Open sections, clear exercise headings, separators and aligned controls replace enclosing rounded cards. Touch targets stay at least44px; short navigation/interaction transitions respect prefers-reduced-motion.
 
-Food tracking has been removed: no Nutrition tab, calorie/macronutrient display, diet setting, food search, custom-food or recipe workflow. The `foods`/`logs` stores, their sync and validation support, and the diet preference field have been removed entirely, since no installation ever held real data in them. No new third-party food requests are made.
+Food tracking has been removed: no Nutrition tab, calorie/macronutrient display, diet setting, food search, custom-food or recipe workflow. New databases create only workout and settings stores. Current clients ignore any retired-store records returned by an older server, leaving those records untouched on disk. No new third-party food requests are made.
 
 ## Workout dates and progression
 

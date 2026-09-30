@@ -5,6 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import http from "node:http";
 test("HTTP service protects records, enforces origin and persists authenticated updates", async () => {
   const directory = await mkdtemp(join(tmpdir(), "steadily-test-")),
     token = randomBytes(32).toString("hex");
@@ -47,6 +48,9 @@ test("HTTP service protects records, enforces origin and persists authenticated 
       "Content-Type": "application/json",
       Origin: "https://journal.test",
     };
+    for (const body of ['{', 'null', '{"changes":[null]}', '{"changes":[{"store":"sessions","record":{"id":"invalid"}}]}']) {
+      assert.equal((await fetch(base + '/api/sync', {method:'POST', headers, body})).status, 400);
+    }
     const unlocked = await fetch(base + "/api/unlock", {
       method: "POST",
       headers,
@@ -84,12 +88,31 @@ test("HTTP service protects records, enforces origin and persists authenticated 
     });
     assert.equal(r.status, 200);
     assert.equal((await r.json()).length, 1);
+    // Deliberately split a multibyte character across HTTP chunks.
+    const unicodeRecord = {...record, id:'unicode', note:'Training 💪 café'};
+    const body = Buffer.from(JSON.stringify({changes:[{store:'settings',record:unicodeRecord}]}));
+    const split = body.indexOf(Buffer.from('💪')) + 1;
+    const received = await new Promise((resolve,reject) => {
+      const request = http.request(base + '/api/sync', {method:'POST',headers}, response => {
+        let text = '';
+        response.setEncoding('utf8');
+        response.on('data', chunk => text += chunk);
+        response.on('end', () => {
+          try { assert.equal(response.statusCode,200); resolve(JSON.parse(text)); }
+          catch (error) { reject(error); }
+        });
+      });
+      request.on('error',reject);
+      request.write(body.subarray(0,split));
+      setTimeout(() => request.end(body.subarray(split)),25);
+    });
+    assert.equal(received.find(item => item.record.id === 'unicode').record.note,unicodeRecord.note);
     r = await fetch(base + "/api/sync", {
       method: "POST",
       headers,
       body: JSON.stringify({ changes: [{ store: "settings", record }] }),
     });
-    assert.equal((await r.json()).length, 1);
+    assert.equal((await r.json()).length, 2);
   } finally {
     child.kill();
     await new Promise((resolve) => child.once("exit", resolve));

@@ -1,4 +1,4 @@
-const CACHE = "steadily-v22";
+const CACHE = "steadily-v24";
 const ASSETS = [
   "/",
   "/index.html",

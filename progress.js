@@ -78,7 +78,7 @@ export function renderProgress({sessions,weighIns,range,unit,exerciseKey,exercis
   const latest=series.raw.at(-1), prior=series.raw[0], selected=group?.rows.at(-1), previous=group?.rows.at(-2), plot=exerciseSeries(group,exerciseMetric);
   const counts=sessions.filter(s=>s.finished&&!s._deleted&&!s.conflictOf&&inRange(s.date,days,today));
   const form=draft||{date:today,value:'',unit,note:''};
-  const header = `<div class="page-title"><div><p class="eyebrow">THE LONG VIEW</p><h1>Progress</h1></div><label class="progress-filter">Period<select id="progress-range">${[[7,'7 days'],[30,'30 days'],[90,'90 days'],[0,'All time']].map(([n,label])=>`<option value="${n}" ${n===days?'selected':''}>${label}</option>`).join('')}</select></label></div>
+  const header = `<div class="page-title"><div><h1>Progress</h1></div><label class="progress-filter">Period<select id="progress-range">${[[7,'7 days'],[30,'30 days'],[90,'90 days'],[0,'All time']].map(([n,label])=>`<option value="${n}" ${n===days?'selected':''}>${label}</option>`).join('')}</select></label></div>
 `;
   const body = `  <article class="progress-card"><div class="section-title"><h2>Body weight</h2><label class="progress-filter">Display<select id="progress-unit"><option ${unit==='lb'?'selected':''}>lb</option><option ${unit==='kg'?'selected':''}>kg</option></select></label></div><p>Separate from the weights you lift.</p>
   <div class="weight-summary"><strong>${latest?fmt(latest.value):'—'} <small>${unit}</small></strong><span>${latest?`Latest in period · ${latest.date}`:'No dated entry in this period'}</span></div>

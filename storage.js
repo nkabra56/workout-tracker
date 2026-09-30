@@ -57,7 +57,9 @@ export async function sync() {
           ? "Pi sync is not configured."
           : "Sync unavailable; local changes are safe.",
     ), { status: response.status });
-  const incoming = await response.json();
+  // Older servers may retain records from retired stores. Leave those records
+  // untouched on the server without opening nonexistent IndexedDB stores.
+  const incoming = (await response.json()).filter(item => stores.includes(item.store));
   const newConflicts = incoming.filter(item => item.record.conflictOf && !snapshots[stores.indexOf(item.store)].some(r => r.id === item.record.id)).length;
   const d = await db;
   await new Promise((resolve, reject) => {

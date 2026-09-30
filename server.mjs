@@ -112,16 +112,20 @@ http
           res.writeHead(204).end();
           return;
         }
-        let body = "";
+        const chunks = [];
+        let bytes = 0;
         for await (const chunk of req) {
-          body += chunk;
-          if (Buffer.byteLength(body) > 5e6) {
+          bytes += chunk.length;
+          if (bytes > 5e6) {
             res.writeHead(413).end();
             return;
           }
+          chunks.push(chunk);
         }
-        const parsed = JSON.parse(body);
-        if (!Array.isArray(parsed.changes) || parsed.changes.length > 10000) {
+        let parsed;
+        try { parsed = JSON.parse(Buffer.concat(chunks).toString("utf8")); }
+        catch { res.writeHead(400).end(); return; }
+        if (!Array.isArray(parsed?.changes) || parsed.changes.length > 10000) {
           res.writeHead(400).end();
           return;
         }
@@ -156,8 +160,8 @@ http
       );
       res.setHeader("Cache-Control", "no-cache");
       res.end(await readFile(root + file));
-    } catch {
-      res.writeHead(502).end("Service unavailable");
+    } catch (error) {
+      res.writeHead(error.status === 400 ? 400 : 502).end(error.status === 400 ? "Invalid request" : "Service unavailable");
     }
   })
   .listen(

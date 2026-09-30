@@ -12,15 +12,16 @@ export function authorized(provided, expected) {
 export function reconcile(state, changes) {
   const next = structuredClone(state);
   for (const change of changes) {
-    const { store, record, base } = change;
+    const { store, record, base } = change || {};
     if (
       !["sessions", "settings"].includes(store) ||
       !record ||
       typeof record.id !== "string" ||
       record.id.length > 160
     )
-      throw Error("Invalid sync record");
-    validateRecord(store, record);
+      throw Object.assign(Error("Invalid sync record"), {status: 400});
+    try { validateRecord(store, record); }
+    catch { throw Object.assign(Error("Invalid sync record"), {status: 400}); }
     const clean = { ...record };
     delete clean._base;
     delete clean._dirty;
@@ -43,7 +44,7 @@ export function reconcile(state, changes) {
     ) {
       const conflict = {
         ...clean,
-        id: clean.id + "-conflict-" + version.slice(0, 16),
+        id: clean.id.slice(0, 134) + "-conflict-" + version.slice(0, 16),
         conflictOf: clean.id,
       };
       const conflictKey = store + ":" + conflict.id;

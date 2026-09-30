@@ -164,7 +164,7 @@ function today() {
     },
   ).join(
     "",
-  )}</div><article class="workout-hero"><div class="hero-top"><span class="eyebrow">${pending ? "CONTINUE YOUR SESSION" : scheduled < 0 ? "REST DAY · YOUR NEXT WORKOUT" : "YOUR WORKOUT"}</span><span class="day-pill">Day ${chosen + 1}</span></div><h2>${esc(def.name)}</h2><p>${def.exercises.length} exercises <span>·</span> ${count} working sets <span>·</span> ${pending ? pending.unit : settings.unit}</p>${pending ? `<div class="session-progress"><progress value="${complete}" max="${count}" aria-label="Completed sets"></progress><small>${complete} of ${count} sets complete</small></div>` : ""}<button class="primary-wide" ${pending ? `data-resume="${pending.id}"` : `data-choose="${chosen}"`}>${pending ? "Resume workout" : "Choose date & workout"} <span aria-hidden="true">→</span></button><a class="subtle-link" href="#workout/log">Choose any date or routine</a></article><div class="section-title section-label"><h2>This week</h2><a href="#progress/activity">Activity →</a></div><article class="week-summary"><div><strong>${week.length}</strong><span>sessions completed</span></div><p>Logged on your actual workout dates.<br>Build consistency at your own pace.</p></article><div class="section-cards today-links"><a class="section-card" href="#progress/body"><strong>Body weight</strong><span>Log a measurement or view your trend →</span></a><a class="section-card" href="#progress/exercises"><strong>Exercise charts</strong><span>Loads, reps and volume over time →</span></a></div>`;
+  )}</div><article class="workout-hero"><div class="hero-top"><span class="eyebrow">${pending ? "CONTINUE YOUR SESSION" : scheduled < 0 ? "REST DAY · YOUR NEXT WORKOUT" : "YOUR WORKOUT"}</span><span class="day-pill">Day ${chosen + 1}</span></div><h2>${esc(def.name)}</h2><p>${def.exercises.length} exercises <span>·</span> ${count} working sets <span>·</span> ${pending ? pending.unit : settings.unit}</p>${pending ? `<div class="session-progress"><progress value="${complete}" max="${count}" aria-label="Completed sets"></progress><small>${complete} of ${count} sets complete</small></div>` : ""}<button class="primary-wide" ${pending ? `data-resume="${pending.id}"` : `data-choose="${chosen}"`}>${pending ? "Resume workout" : "Choose date & workout"} <span aria-hidden="true">→</span></button><a class="subtle-link" href="#workout/log">Choose any date or routine</a></article><div class="section-title section-label"><h2>This week</h2><a href="#progress/activity">Activity →</a></div><article class="week-summary"><div><strong>${week.length}</strong><span>sessions completed</span></div><p>Completed workouts, counted on<br>the day you trained.</p></article><div class="section-cards today-links"><a class="section-card" href="#progress/body"><strong>Body weight</strong><span>Log a measurement or view your trend →</span></a><a class="section-card" href="#progress/exercises"><strong>Exercise charts</strong><span>Loads, reps and volume over time →</span></a></div>`;
 }
 const personIcon =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-3a7 7 0 0 1 14 0v3"/></svg>';
@@ -174,7 +174,7 @@ function workoutChooser() {
   return `<article class="workout-picker"><h2>Choose your workout</h2><p>Routine Day 1–5 is a plan label, not a weekday. Pick any routine for any calendar date.</p><form id="workout-start"><label class="date-control"><span>Workout date</span><input id="workout-date" name="date" type="date" value="${workoutDate}" required></label><label>Routine<select id="workout-routine" name="routine">${definitions.map((d,i)=>`<option value="${i}" ${i===workoutRoutine?'selected':''}>Day ${i+1} · ${esc(d.name)}</option>`).join('')}</select></label><p>${workoutDate>day()?'Future date · planned session. It will not count as completed training.':'Log your workout on this date, regardless of your optional weekly schedule.'}</p><button ${pending.length>1?'disabled':''}>${pending.length===1?'Resume this workout':pending.length>1?'Choose an existing session below':existing.length?'Start another session':workoutDate>day()?'Plan workout':'Start workout'}</button></form>${existing.length?`<div class="existing-workouts"><h3>Already on ${workoutDate}</h3>${existing.map((r,i)=>`<button class="secondary history" data-resume="${r.id}">${r.finished?'View completed':r.date>day()?'Open planned':'Resume'} session ${i+1} · ${esc(r.title || definitions[r.template].name)}</button>`).join('')}${pending.length?'<button class="secondary" id="workout-additional">Start a separate session</button>':''}</div>`:''}</article><div class="section-cards"><a class="section-card" href="#workout/routines"><strong>Workout routines</strong><span>Browse and edit your five templates →</span></a><a class="section-card" href="#workout/history"><strong>Session history</strong><span>Resume, review or open a planned workout →</span></a></div>`;
 }
 function workoutRoutines() {
-  return `<p>Day numbers label routines. Choose any one on any date.</p><div class="template-grid">${definitions.map((t,i)=>`<div class="template-choice"><button class="template" data-choose="${i}"><small>ROUTINE DAY ${i+1} · ${t.exercises.length} EXERCISES</small><strong>${esc(t.name)}</strong><span>Choose date & start →</span></button><button class="secondary edit-template" data-edit-template="${i}">Edit</button></div>`).join('')}</div>`;
+  return `<p>Day numbers label routines. Choose any one on any date.</p><div class="template-grid">${definitions.map((t,i)=>`<div class="template-choice"><button class="template" data-choose="${i}"><span class="routine-number" aria-hidden="true">${String(i+1).padStart(2,"0")}</span><span class="routine-copy"><strong>${esc(t.name)}</strong><small>DAY ${i+1} · ${t.exercises.length} EXERCISES</small></span></button><button class="secondary edit-template" data-edit-template="${i}">Edit</button></div>`).join('')}</div>`;
 }
 function workoutHistory() {
   const records = [...sessions].filter(s=>!s._deleted).sort((a,b)=>b.date.localeCompare(a.date));
@@ -195,7 +195,7 @@ async function startSelectedWorkout(separate = false) {
 function workout() {
   const view=routeFor(location.hash).section;
   if (!active) {
-    app.innerHTML = heading('YOUR TRAINING JOURNAL','Train','') + sectionLinks('workout',view==='session'?'log':view) +
+    app.innerHTML = heading('','Train','') + sectionLinks('workout',view==='session'?'log':view) +
       (view==='routines'?workoutRoutines():view==='history'?workoutHistory():workoutChooser());
     return;
   }
@@ -215,11 +215,11 @@ function workout() {
         )
         .map((s) => s.exercises.find((old) => sameExercise(old, ex)))
         .find(Boolean);
-      return `<article class="exercise compact-exercise"><h3><span class="ordinal">${String(i + 1).padStart(2, "0")}</span>${esc(ex.name)}</h3><p class="exercise-target">${ex.sets.length} × ${ex.min}–${ex.max}${ex.each ? " / side" : ""}<span>·</span>${ex.rest[0] === ex.rest[1] ? ex.rest[0] : ex.rest.join("–")}s rest<span>·</span>${active.template === 2 ? "~3" : "2–3"} RIR</p>${previous ? `<details class="previous-data"><summary>Last: ${previous.sets.map((p) => esc(p.weight || "—") + "×" + esc(p.reps || "—")).join(" · ")} ${active.unit}</summary><table><caption>Previous session</caption><thead><tr><th>Set</th><th>${active.unit}</th><th>Reps</th><th>RIR</th></tr></thead><tbody>${previous.sets.map((p, j) => `<tr><td>${j + 1}</td><td>${esc(p.weight || "—")}</td><td>${esc(p.reps || "—")}</td><td>${esc(p.rir || "—")}</td></tr>`).join("")}</tbody></table></details>` : '<small class="previous-empty">No previous session</small>'}<div class="set-head"><span>Set</span><span>${active.unit}</span><span>Reps</span><span>RIR</span><span>Done</span></div>${ex.sets.map((set, j) => `<div class="set-row"><b>${j + 1}</b>${["weight", "reps", "rir"].map((k) => `<input aria-label="${esc(ex.name)} set ${j + 1} ${k}" inputmode="${k === "weight" ? "decimal" : "numeric"}" type="number" min="0" ${k === "rir" ? 'max="10"' : ""} step="${k === "weight" ? "any" : "1"}" data-set="${i},${j},${k}" value="${esc(set[k])}">`).join("")}<input type="checkbox" aria-label="Complete ${esc(ex.name)} set ${j + 1}" data-set="${i},${j},done" ${set.done ? "checked" : ""}></div>`).join("")}<details class="equipment"><summary>Equipment & load increment</summary><label>Equipment / stack label<input data-equipment="${i}" value="${esc(ex.equipment)}" maxlength="200" placeholder="e.g. gym A, cable 1"></label><label>Smallest load increase (${active.unit})<input data-increment="${i}" inputmode="decimal" type="number" min="0.01" step="any" value="${esc(ex.increment || convertWeight(settings.increment, settings.unit, active.unit))}"></label></details></article>`;
+      return `<article class="exercise compact-exercise"><h3><span class="ordinal">${String(i + 1).padStart(2, "0")}</span>${esc(ex.name)}</h3><p class="exercise-target">${ex.sets.length} × ${ex.min}–${ex.max}${ex.each ? " / side" : ""}<span>·</span>${ex.rest[0] === ex.rest[1] ? ex.rest[0] : ex.rest.join("–")}s rest<span>·</span>${active.template === 2 ? "~3" : "2–3"} RIR</p>${previous ? `<details class="previous-data"><summary>Last: ${previous.sets.map((p) => esc(p.weight || "—") + "×" + esc(p.reps || "—")).join(" · ")} ${active.unit}</summary><table><caption>Previous session</caption><thead><tr><th>Set</th><th>${active.unit}</th><th>Reps</th><th>RIR</th></tr></thead><tbody>${previous.sets.map((p, j) => `<tr><td>${j + 1}</td><td>${esc(p.weight || "—")}</td><td>${esc(p.reps || "—")}</td><td>${esc(p.rir || "—")}</td></tr>`).join("")}</tbody></table></details>` : '<small class="previous-empty">No previous session</small>'}<div class="set-head"><span>Set</span><span>${active.unit}</span><span>Reps</span><span>RIR</span><span>Done</span></div>${ex.sets.map((set, j) => `<div class="set-row"><b>${j + 1}</b>${["weight", "reps", "rir"].map((k) => `<input aria-label="${esc(ex.name)} set ${j + 1} ${k}" inputmode="${k === "weight" ? "decimal" : "numeric"}" type="number" min="0" ${k === "rir" ? 'max="10"' : 'max="1000000"'} step="${k === "weight" ? "any" : "1"}" data-set="${i},${j},${k}" value="${esc(set[k])}">`).join("")}<input type="checkbox" aria-label="Complete ${esc(ex.name)} set ${j + 1}" data-set="${i},${j},done" ${set.done ? "checked" : ""}></div>`).join("")}<details class="equipment"><summary>Equipment & load increment</summary><label>Equipment / stack label<input data-equipment="${i}" value="${esc(ex.equipment)}" maxlength="200" placeholder="e.g. gym A, cable 1"></label><label>Smallest load increase (${active.unit})<input data-increment="${i}" inputmode="decimal" type="number" min="0.01" step="any" value="${esc(ex.increment || convertWeight(settings.increment, settings.unit, active.unit))}"></label></details></article>`;
     })
     .join(
       "",
-    )}<article class="session-finish"><label class="check-label"><input id="technique" type="checkbox" ${active.technique ? "checked" : ""}>Technique was consistent and comfortable</label><details><summary>Notes, cardio & recording guidance</summary><p>Dumbbell loads are per hand. Each-arm sets cover both sides; use the lower reps/RIR. Label different machine stacks separately.</p><label>Private session / symptom notes<textarea id="session-notes">${esc(active.notes)}</textarea></label><label>Optional cardio minutes<input id="cardio" type="number" inputmode="numeric" min="0" value="${esc(active.cardio)}"></label><p>Optional 10–20 min walk, stair climber or rowing on D1/D5; other days welcome. Stop or adapt movements that hurt.</p></details>${correction ? `<div class="weight-actions"><button id="session-save-bottom">Save changes</button><button id="session-cancel-bottom" class="secondary">Cancel</button></div>` : `${active.finished?"":`<button id="finish">Finish session</button><button id="edit-session" class="secondary">Adjust exercises</button>`}<button class="danger secondary" data-session-delete="${active.id}">Delete session</button>`}</article>${active.editArchive?.length ? `<details><summary>Saved pre-edit entries (${active.editArchive.length})</summary><pre>${esc(JSON.stringify(active.editArchive, null, 2))}</pre></details>` : ""}</section>`;
+    )}<article class="session-finish"><label class="check-label"><input id="technique" type="checkbox" ${active.technique ? "checked" : ""}>Technique was consistent and comfortable</label><details><summary>Notes, cardio & recording guidance</summary><p>Dumbbell loads are per hand. Each-arm sets cover both sides; use the lower reps/RIR. Label different machine stacks separately.</p><label>Private session / symptom notes<textarea id="session-notes" maxlength="5000">${esc(active.notes)}</textarea></label><label>Optional cardio minutes<input id="cardio" type="number" inputmode="numeric" min="0" max="1000000" value="${esc(active.cardio)}"></label><p>Optional 10–20 min walk, stair climber or rowing on D1/D5; other days welcome. Stop or adapt movements that hurt.</p></details>${correction ? `<div class="weight-actions"><button id="session-save-bottom">Save changes</button><button id="session-cancel-bottom" class="secondary">Cancel</button></div>` : `${active.finished?"":`<button id="finish">Finish session</button><button id="edit-session" class="secondary">Adjust exercises</button>`}<button class="danger secondary" data-session-delete="${active.id}">Delete session</button>`}</article>${active.editArchive?.length ? `<details><summary>Saved pre-edit entries (${active.editArchive.length})</summary><pre>${esc(JSON.stringify(active.editArchive, null, 2))}</pre></details>` : ""}</section>`;
   if (active.finished && !correction)
     app
       .querySelectorAll(
@@ -232,7 +232,7 @@ function captureWeightDraft() {
   const form = document.querySelector("#weight-entry[open] #weight-form");
   if (!form) return;
   const values = Object.fromEntries(new FormData(form));
-  weightDraft = { id:values.recordId, date:values.date, value:values.value === "" ? "" : Number(values.value), unit:values.unit, note:values.note };
+  weightDraft = { ...weightDraft, id:values.recordId, date:values.date, value:values.value === "" ? "" : Number(values.value), unit:values.unit, note:values.note };
 }
 function progress() {
   app.innerHTML = renderProgress({sessions, weighIns, range:progressRange, unit:progressUnit, exerciseKey:progressExercise, exerciseMetric:progressMetric, view:routeFor(location.hash).section, draft:weightDraft, today:day(), esc});
@@ -247,6 +247,7 @@ function preferences() {
     `<a class="back-link" href="#today">← Back to Today</a><article><h2>Preferences</h2><form id="preferences"><label>New session weight units<select name="unit"><option ${settings.unit === "kg" ? "selected" : ""}>kg</option><option ${settings.unit === "lb" ? "selected" : ""}>lb</option></select></label>${num("increment", `Smallest load increase (${settings.unit})`, settings.increment)}<h3>Weekly schedule</h3>${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => `<label>${d}<select name="day${i}">${[-1, 0, 1, 2, 3, 4].map((x) => `<option value="${x}" ${settings.schedule[i] === x ? "selected" : ""}>${x < 0 ? "Rest" : "Day " + (x + 1)}</option>`).join("")}</select></label>`).join("")}<p><a href="#progress">Log body weight and view its history in Progress →</a></p><label>Optional measurements / private notes<textarea name="measurements">${esc(settings.measurements || "")}</textarea></label><button>Save preferences</button></form></article><article><h2>Automatic Pi sync</h2><p>Your journal syncs automatically while Lifty is open and connected to your private Pi through Tailscale. Offline changes stay on this device and retry when the connection returns. No app sign-in is needed. iOS does not guarantee sync while the app is closed.</p><button id="sync-now" class="secondary">Retry sync</button><h2>Storage & backup</h2><p>Until a successful sync or export, this device holds your only copy. Browser storage is not encrypted by this app and can be cleared by the OS. Keep your device locked and backups private.</p><button id="export">Export private JSON backup</button><label>Merge backup (keeps conflicting alternatives)<input id="import" type="file" accept="application/json"></label><button id="persist" class="secondary">Request persistent browser storage</button><p>On iPhone: open the HTTPS address in Safari, then Share → Add to Home Screen. First load requires a connection.</p></article>`;
 }
 app.addEventListener("input", async (e) => {
+  try {
   const t = e.target;
   if (t.form?.id === 'weight-form') captureWeightDraft();
   if (editing) {
@@ -258,7 +259,7 @@ app.addEventListener("input", async (e) => {
   if (t.dataset.set) {
     const [i, j, k] = t.dataset.set.split(",");
     if (t.type === "number" && !t.validity.valid) return;
-    active.exercises[i].sets[j][k] = k === "done" ? t.checked : t.value;
+    active.exercises[i].sets[j][k] = k === "done" ? t.checked : t.value === "" ? "" : String(Number(t.value));
     await save("sessions", active);
   }
   if (t.dataset.increment !== undefined && t.validity.valid) {
@@ -270,10 +271,12 @@ app.addEventListener("input", async (e) => {
     await save("sessions", active);
   }
   if (["session-notes", "cardio", "technique"].includes(t.id)) {
+    if (!t.validity.valid) return;
     active[t.id === "session-notes" ? "notes" : t.id] =
-      t.id === "technique" ? t.checked : t.value;
+      t.id === "technique" ? t.checked : t.id === "cardio" && t.value !== "" ? String(Number(t.value)) : t.value;
     await save("sessions", active);
   }
+  } catch (error) { toast(error.message); }
 });
 app.addEventListener("change", async (e) => {
   if (e.target.form?.id === 'weight-form') captureWeightDraft();
@@ -324,7 +327,8 @@ app.addEventListener("change", async (e) => {
       }
       const existingSessions = await readAll("sessions", true);
       for (const r of mergeRecords(existingSessions, data.sessions)) await save("sessions", r);
-      for (const r of mergeRecords(templateRecords, data.templates || []))
+      const storedTemplates = (await readAll("settings", true)).filter(r => r.type === "template");
+      for (const r of mergeRecords(storedTemplates, data.templates || []))
         await save("settings", r);
       const storedWeights = (await readAll("settings", true)).filter(r => r.type === "weighin");
       const oldWeight = legacyWeighIn(data.settings || {}, [...storedWeights, ...(data.weighIns || [])]);
@@ -446,9 +450,9 @@ app.addEventListener("click", async (e) => {
           JSON.stringify(
             {
               version: 1,
-              sessions,
+              sessions: await readAll("sessions", true),
               settings,
-              templates: templateRecords,
+              templates: (await readAll("settings", true)).filter(r => r.type === "template"),
               weighIns: (await readAll("settings", true)).filter(r => r.type === "weighin"),
             },
             null,
@@ -475,8 +479,9 @@ app.addEventListener("submit", async (e) => {
     if (form.id === "workout-start") { workoutDate = d.date; workoutRoutine = Number(d.routine); await startSelectedWorkout(); return; }
     if (form.id === "weight-form") {
       const existing = d.recordId ? weighIns.find(r => r.id === d.recordId) : null;
+      if (d.recordId && !existing) throw Error("This body-weight entry was deleted. Cancel to refresh.");
       if (d.date > day()) throw Error("Choose today or an earlier measurement date.");
-      const record = {...existing, id:existing?.id || uid(), type:"weighin", date:d.date, value:Number(d.value), unit:d.unit, note:d.note.trim()};
+      const record = {...existing, ...weightDraft, id:existing?.id || uid(), type:"weighin", date:d.date, value:Number(d.value), unit:d.unit, note:d.note.trim()};
       await save("settings", record);
       weightDraft = null; await load(); progress(); toast("Body weight saved"); return;
     }
@@ -489,6 +494,7 @@ app.addEventListener("submit", async (e) => {
         schedule: Array.from({ length: 7 }, (_, i) => Number(d["day" + i])),
       };
       await save("settings", settings);
+      preferences();
       toast("Preferences saved");
     }
   } catch (err) {

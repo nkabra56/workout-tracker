@@ -114,8 +114,8 @@ export function mergeRecords(existing, incoming) {
     if (old?._deleted) continue;
     if (r._deleted) { result.set(r.id, {...(old || r), _deleted:true}); continue; }
     if (!old) result.set(r.id, r);
-    else if (JSON.stringify(old) !== JSON.stringify(r)) {
-      const conflictId = r.id + "-conflict-" + hash(JSON.stringify(r));
+    else if (recordContent(old) !== recordContent(r)) {
+      const conflictId = r.id.slice(0, 134) + "-conflict-" + hash(recordContent(r));
       if (!result.has(conflictId))
         result.set(conflictId, { ...r, id: conflictId, conflictOf: r.id });
     }
@@ -155,7 +155,11 @@ export function validateRecord(store, r) {
       r.template >= 0 &&
       r.template < 5 &&
       ["kg", "lb"].includes(r.unit) &&
-      /^\d{4}-\d{2}-\d{2}$/.test(r.date) &&
+      validDate(r.date) &&
+      typeof r.finished === "boolean" &&
+      typeof r.technique === "boolean" &&
+      (r.cardio === "" || ((typeof r.cardio === "number" || typeof r.cardio === "string") &&
+        /^\d+(\.\d+)?$/.test(String(r.cardio)) && finite(Number(r.cardio), 1e6))) &&
       text(r.notes) &&
       validDefinition(
         { name: r.title || templates[r.template].name, exercises: r.exercises },
@@ -189,6 +193,7 @@ export function sameExercise(a, b) {
     exerciseIdentity(a) === exerciseIdentity(b) &&
     a.min === b.min &&
     a.max === b.max &&
+    a.each === b.each &&
     (a.equipment || "") === (b.equipment || "")
   );
 }
@@ -203,7 +208,7 @@ export function validDefinition(def, session = false) {
     def.exercises.length <= 30 &&
     def.exercises.every(
       (e) =>
-        typeof e.name === "string" &&
+        e && typeof e.name === "string" &&
         e.name.trim().length > 0 &&
         e.name.length <= 200 &&
         (!e.exerciseId || /^[-a-zA-Z0-9]{1,160}$/.test(e.exerciseId)) &&
@@ -222,7 +227,7 @@ export function validDefinition(def, session = false) {
             e.sets.length <= 20 &&
             e.sets.every(
               (s) =>
-                typeof s.done === "boolean" &&
+                s && typeof s.done === "boolean" &&
                 ["weight", "reps", "rir"].every(
                   (k) =>
                     s[k] === "" ||
@@ -319,7 +324,7 @@ export function recordContent(record) {
   return JSON.stringify(content);
 }
 export function applySyncRecord(current, snapshot, item) {
-  if (item.store === "sessions" && item.record._deleted)
+  if (item.record._deleted)
     return {...item.record, _base:item.version, _dirty:false};
   if (current && JSON.stringify(current) !== JSON.stringify(snapshot)) {
     // The server accepted this device's snapshot while the user kept typing.
